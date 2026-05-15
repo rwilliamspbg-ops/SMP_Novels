@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF same-origin" content="SaaS Platform">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COGNOSCENT ECHO | SaaS Platform</title>
+    <link rel="stylesheet" href="src/style.css">
+    <!-- Load Monaco Editor from CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs/loader.min.js"></script>
+</head>
+<body class="saas-theme">
+    <div id="app">
+        <header>
+            <h1 class="logo">COGNOSCENT <span class="echo">ECHO</span></h1>
+            <div id="dashboard" class="dashboard">
+                <div class="metric">TP: <span id="metric-throughput">-</span></div>
+                <div class="metric">LAT: <span id="metric-latency">-</span></div>
+                <div class="metric">RES: <span id="metric-resilience">-</span></div>
+                <div class="metric">NRG: <span id="metric-energy">-</span></div>
+            </div>
+            <button id="admin-toggle" style="font-size: 0.7rem; padding: 2px 5px;">SaaS Admin</button>
+        </header>
+
+        <div id="auth-container" style="display:none;">
+            <div class="auth-card">
+                <h2 style="color:#00ffcc">Enter the Core</h2>
+                <form id="login-form">
+                    <input type="text" name="username" placeholder="Username" autocomplete="username" required>
+                    <input type="password" name="password" placeholder="Password" autocomplete="current-password" required>
+                    <button type="submit" class="run-btn">Authenticate</button>
+                </form>
+            </div>
+        </div>
+
+        <div id="admin-panel" style="display:none;" class="admin-panel">
+            <h2 style="color:#00ffcc">Novel Authoring Suite</h2>
+            <div class="node-editor">
+                <div class="node-col">
+                    <label>Chapter Text</label>
+                    <textarea id="node-text" class="node-input" rows="5"></textarea>
+                </div>
+                <div class="node-col">
+                    <label>AI Persona Prompt</label>
+                    <textarea id="node-ai" class="node-input" rows="5"></textarea>
+                </div>
+            </div>
+            <button class="run-btn" id="save-node">Deploy Chapter to Core</button>
+        </div>
+
+        <main id="story-container">
+            <div id="story-text" class="story-text"></div>
+            <div id="interactive-zone"></div>
+            <div id="choices-container" class="choices-container"></div>
+        </main>
+    </div
+    <script src="src/main.js"></script>
+</body
+</html>
