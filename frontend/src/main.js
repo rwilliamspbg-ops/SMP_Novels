@@ -25,8 +25,14 @@ async function requestWithAuth(path, body = null) {
     if (body) options.method = 'POST', options.body = JSON.stringify(body);
     try {
         const response = await fetch(`${API_BASE}${path}`, options);
-        if (response.status === 401) showAuth();
-        return await response.json();
+        const payload = await response.json();
+
+        if (response.status === 401) {
+            showAuth();
+            return { error: 'Unauthorized', status: 401 };
+        }
+
+        return payload;
     } catch (e) {
         console.error('API Error:', e);
         return { error: 'Backend unreachable' };
@@ -65,6 +71,7 @@ async function loadChapter(id) {
     currentChapterId = id;
     const chapter = await requestWithAuth(`/novel/cognoscent-echo/chapter/${id}`);
     if (!chapter || chapter.error) {
+        if (chapter && chapter.status === 401) return;
         elements.storyText.innerText = "Error loading chapter. Ensure backend is running.";
         return;
     }

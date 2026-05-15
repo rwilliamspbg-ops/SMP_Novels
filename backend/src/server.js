@@ -36,6 +36,11 @@ const authenticate = (req, res, next) => {
     } catch (e) { res.status(401).json({ error: 'Unauthorized' }); }
 };
 
+function getSeedChapter(slug, chapterId) {
+    if (slug !== 'cognoscent-echo') return null;
+    return narrativeData.chapters[chapterId] || null;
+}
+
 app.get('/ping', (req, res) => res.json({ status: 'alive', timestamp: new Date() }));
 
 app.post('/auth/register', async (req, res) => {
@@ -56,9 +61,25 @@ app.post('/auth/login', async (req, res) => {
 
 app.get('/novel/:slug/chapter/:id', authenticate, async (req, res) => {
     try {
-        const novel = await Novel.findOne({ slug: req.params.slug });
-        if (!novel) return res.status(404).json({ error: 'Novel not found' });
-        const chapter = novel.content.get(req.params.id.toString());
+        const chapterId = req.params.id.toString();
+        let chapter = null;
+
+        try {
+            const novel = await Novel.findOne({ slug: req.params.slug });
+            if (novel && novel.content) {
+                chapter = typeof novel.content.get === 'function'
+                    ? novel.content.get(chapterId)
+                    : novel.content[chapterId];
+            }
+        } catch (dbError) {
+            console.warn('Falling back to seeded chapter data:', dbError.message);
+        }
+
+        if (!chapter) {
+            chapter = getSeedChapter(req.params.slug, chapterId);
+        }
+
+        if (!chapter) return res.status(404).json({ error: 'Chapter not found' });
         res.json(chapter);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
