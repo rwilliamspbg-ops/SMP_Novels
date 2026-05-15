@@ -1,53 +1,92 @@
 ﻿# 🌌 Cognoscent Echo Interactive Platform
-**An AI-Orchestrated Narrative Experience**
+A concise guide for running, developing, and contributing to the project.
 
-![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
+![CI Status](https://img.shields.io/badge/ci-pending-lightgrey)
 ![Version](https://img.shields.io/badge/version-1.0.0--MVP-blue)
 ![License](https://img.shields.io/badge/license-MIT-lightgrey)
-![Stack](https://img.shields.io/badge/stack-Fastify%20%7C%20React%20%7C%20WASM-orange)
+![Node.js](https://img.shields.io/badge/node-18+-green)
 
-The **Cognoscent Echo Interactive Platform** is a high-fidelity implementation of the *Cognoscent Echo* manuscript. It transforms a traditional novel into a living system where the reader acts as a protocol engineer, a legal arbiter, and a quantum analyst.
+Overview
+--------
+An AI-orchestrated interactive narrative platform that transforms a novel into a branching, stateful experience with AI-driven characters, governance, and simulation modules.
 
-## 🚀 Core Features
+Quick links
+-----------
+- Code: [backend/](backend) and [frontend/](frontend)
+- Docker compose: [docker-compose.yml](docker-compose.yml)
+- Environment example: [.env.example](.env.example)
+- Tests & checks: `backend/src/test_suite.js`, `backend/src/edge_case_tests.js`
 
-### 🧠 Narrative Intelligence
-- **Saga Plot Engine:** A state-machine based branching system that tracks `decisions_made` in JSONB format, ensuring precise narrative continuity.
-- **AI Memory System:** Characters (Elias, Priya, Thorne) possess persistent memory of your choices, altering their dialogue and attitudes as the story progresses.
+Prerequisites
+-------------
+- Node.js 18+ (for local dev)
+- Docker & Docker Compose (for full stack local runs)
+- Optional: `gh` and `docker` CLI if using automation in this repo
 
-### 🛠️ Interactive Protocol Modules
-- **Code Playground (Ch. 1):** Live Go/WASM execution environment for memory allocation and zero-copy pattern validation.
-- **Governance DAO (Ch. 3 & 26):** Collective real-time voting system that determines the global state of the world.
-- **Forensic Tool (Ch. 12):** Binary-diff analysis for tracing "Mirror Layer" shims in the ledger.
-- **Security Audit (Ch. 14):** PR-style code review interface for detecting malicious PQC bypasses.
-- **Quantum Simulator (Ch. 36):** High-pressure lattice resilience test with visual wave-form feedback.
+Local development (quick)
+-------------------------
+1. Copy environment placeholders:
 
-### 🎬 Cinematic Experience
-- **Glitch Aesthetic:** Dynamic CSS/JS visual distortions that trigger during "Dark Node" failures.
-- **Generative Soundscape:** A Web Audio API-driven environment that shifts from corporate ambient hum to high-tension dissonance based on narrative stress.
-- **Sovereign Epilogues:** Three distinct world-state endings (Sovereign, Corporate, Broken) based on aggregate global decisions.
+```bash
+cp .env.example .env
+# Edit .env to add secrets and endpoints
+```
 
-## 🛠️ Technical Stack
-- **Backend:** `Fastify` (Node.js), `PostgreSQL` (Planned for prod), `Redis` (Global Votes).
-- **Frontend:** `React` / `Vanilla JS` Bridge, `Monaco Editor`, `Web Audio API`.
-- **Logic:** `WASM` for simulations, `JSONB` for state tracking.
+2. Start dependent services with Docker (optional, recommended for full integration):
 
-## 🗺️ Roadmap
-- [x] **Phase 1: Foundation** (API, Basic Branching, AI Base)
-- [x] **Phase 2: The Assault** (Forensics, PR Review, Global Governance, Quantum Sim)
-- [x] **Phase 3: Convergence** (AI Memory, Glitch FX, Soundscape, Audit)
-- [x] **Phase 4: Launch** (Final Epilogues, Deployment Manifest)
-- [ ] **Future:** Full Integration with CopilotKit for AI-driven UI navigation.
+```bash
+docker-compose up --build -d
+```
 
-## 📦 Quick Start
-1. **Backend:**
-   ```bash
-   cd backend
-   npm install
-   node src/server_fastify.js
-   ```
-2. **Frontend:**
-   Open `frontend/index.html` in a browser (ensure backend is running on port 3001).
+3. Backend (run locally without Docker):
 
-## 📄 Documentation
-- **Deployment:** See `DEPLOYMENT.md` for Vercel/Fly.io guides.
-- **Narrative:** Refer to `backend/src/narrativeData.js` for the chapter graph.
+```bash
+cd backend
+npm install
+# Validate required env vars
+npm run check-env
+# Start server
+node src/server_fastify.js
+```
+
+4. Frontend (static):
+
+- Open `frontend/index.html` in your browser, or run the containerized frontend via docker-compose.
+
+Docker / Compose
+-----------------
+- `docker-compose.yml` provides local services including `mongodb`, `postgres`, `redis`, `backend`, and `frontend`.
+- Use `.env` for runtime secrets (do not commit `.env`). See `.env.example` for required keys.
+
+Tests & checks
+--------------
+- Basic unit/integration test files live in `backend/src/`:
+  - `test_suite.js`, `test_suite_lite.js`, `edge_case_tests.js`, `test_lite_final.js`.
+- CI: A PR workflow runs a lightweight env check and `npm audit` on backend/frontend. See `.github/workflows/pr-ci.yml`.
+
+Security notes
+--------------
+- Secrets must be set via `.env` or a secret manager; the code now errors on missing required secrets.
+- Docker images were updated to run non-root users; ensure production images are hardened further before deploy.
+
+Available commands
+------------------
+- `cd backend && npm run check-env` — verify required environment variables.
+- `cd backend && node src/server_fastify.js` — start the backend server.
+- `docker-compose up --build` — build and start local stack.
+- `node backend/src/edge_case_tests.js` — run integration checks (requires Postgres/Redis).
+
+Contributing
+------------
+- Please run the PR checks (CI) before opening a PR. Add tests for new features and avoid committing secrets.
+- To propose changes, open a PR and reference the remediation checklist in the security PR.
+
+More docs
+---------
+- Deployment details: [DEPLOYMENT.md](DEPLOYMENT.md)
+- Developer notes & narrative graph: `backend/src/narrativeData.js`
+
+License
+-------
+MIT — see `LICENSE`.
+
