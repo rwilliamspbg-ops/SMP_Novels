@@ -1,10 +1,20 @@
 ﻿# 🌌 Cognoscent Echo Interactive Platform
 A concise guide for running, developing, and contributing to the project.
 
-![CI Status](https://img.shields.io/badge/ci-pending-lightgrey)
-![Version](https://img.shields.io/badge/version-1.0.0--MVP-blue)
-![License](https://img.shields.io/badge/license-MIT-lightgrey)
-![Node.js](https://img.shields.io/badge/node-18+-green)
+<!-- Badges: CI, release, issues, PRs, dependabot, repo stats -->
+![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/rwilliamspbg-ops/SMP_Novels/pr-ci.yml?branch=main&label=PR%20CI)
+![Release](https://img.shields.io/github/v/release/rwilliamspbg-ops/SMP_Novels)
+![Last Commit](https://img.shields.io/github/last-commit/rwilliamspbg-ops/SMP_Novels)
+![Issues](https://img.shields.io/github/issues/rwilliamspbg-ops/SMP_Novels)
+![Pull Requests](https://img.shields.io/github/issues-pr/rwilliamspbg-ops/SMP_Novels)
+![Dependabot Alerts](https://img.shields.io/github/dependabot/alerts/rwilliamspbg-ops/SMP_Novels)
+![Repo Size](https://img.shields.io/github/repo-size/rwilliamspbg-ops/SMP_Novels)
+![Code Size](https://img.shields.io/github/languages/code-size/rwilliamspbg-ops/SMP_Novels)
+![Top Language](https://img.shields.io/github/languages/top/rwilliamspbg-ops/SMP_Novels)
+![Stars](https://img.shields.io/github/stars/rwilliamspbg-ops/SMP_Novels)
+![Forks](https://img.shields.io/github/forks/rwilliamspbg-ops/SMP_Novels)
+![License](https://img.shields.io/github/license/rwilliamspbg-ops/SMP_Novels)
+![Node.js](https://img.shields.io/badge/node-18%2B-green)
 
 Overview
 --------
