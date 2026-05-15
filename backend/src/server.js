@@ -3,6 +3,7 @@ const cors = require('cors');
 const http = require('http');
 const WebSocket = require('ws');
 const mongoose = require('mongoose');
+const path = require('path');
 const authService = require('./authService');
 const { User, Save, Novel } = require('./models');
 const aiEngine = require('./aiEngine');
@@ -36,11 +37,6 @@ const authenticate = (req, res, next) => {
     } catch (e) { res.status(401).json({ error: 'Unauthorized' }); }
 };
 
-function getSeedChapter(slug, chapterId) {
-    if (slug !== 'cognoscent-echo') return null;
-    return narrativeData.chapters[chapterId] || null;
-}
-
 app.get('/ping', (req, res) => res.json({ status: 'alive', timestamp: new Date() }));
 
 app.post('/auth/register', async (req, res) => {
@@ -61,25 +57,9 @@ app.post('/auth/login', async (req, res) => {
 
 app.get('/novel/:slug/chapter/:id', authenticate, async (req, res) => {
     try {
-        const chapterId = req.params.id.toString();
-        let chapter = null;
-
-        try {
-            const novel = await Novel.findOne({ slug: req.params.slug });
-            if (novel && novel.content) {
-                chapter = typeof novel.content.get === 'function'
-                    ? novel.content.get(chapterId)
-                    : novel.content[chapterId];
-            }
-        } catch (dbError) {
-            console.warn('Falling back to seeded chapter data:', dbError.message);
-        }
-
-        if (!chapter) {
-            chapter = getSeedChapter(req.params.slug, chapterId);
-        }
-
-        if (!chapter) return res.status(404).json({ error: 'Chapter not found' });
+        const novel = await Novel.findOne({ slug: req.params.slug });
+        if (!novel) return res.status(404).json({ error: 'Novel not found' });
+        const chapter = novel.content.get(req.params.id.toString());
         res.json(chapter);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -102,6 +82,44 @@ app.post('/save', authenticate, async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/admin/novel/update', authenticate, async (req, res) => {
+    try {
+        const { slug, chapterId, update } = req.body;
+
+        if (!slug || typeof slug !== 'string') return res.status(400).json({ error: 'Missing slug' });
+        const chapterNum = Number(chapterId);
+        if (!Number.isFinite(chapterNum) || chapterNum < 1) return res.status(400).json({ error: 'Invalid chapterId' });
+        if (!update || typeof update !== 'object') return res.status(400).json({ error: 'Missing update object' });
+
+        // Minimal validation for expected admin UI payload
+        // (keeps it flexible so Phase 2 can harden later)
+        const normalized = {
+            text: typeof update.text === 'string' ? update.text : '',
+            choices: Array.isArray(update.choices) ? update.choices : [],
+            interactiveElement: update.interactiveElement ?? null,
+        };
+
+        const novel = await Novel.findOne({ slug });
+        if (!novel) {
+            return res.status(404).json({ error: 'Novel not found for given slug' });
+        }
+
+        // chapters stored in a Map; keys are strings
+        novel.content.set(chapterNum.toString(), normalized);
+
+        // ensure doc is persisted
+        novel.metadata = novel.metadata || new Map();
+        novel.metadata.set('lastUpdatedBy', req.userId.toString());
+        novel.metadata.set('lastUpdatedAt', new Date().toISOString());
+
+        await novel.save();
+
+        res.json({ ok: true, slug, chapterId: chapterNum, updated: normalized });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 wss.on('connection', (ws) => {
     console.log('WebSocket client connected!');
     const interval = setInterval(() => {
@@ -117,4 +135,18 @@ wss.on('connection', (ws) => {
 });
 
 const PORT = 3001;
+
+// --- Cognoscent Echo PDF Viewer Integration ---
+const PDF_PATH = path.join(process.cwd(), "THE_COGNOSCENT_ECHO.pdf");
+const VIEWER_PATH = path.join(process.cwd(), "src", "viewer.html");
+
+app.get("/novel-viewer", (_req, res) => {
+    res.sendFile(VIEWER_PATH);
+});
+
+app.get("/novel.pdf", (_req, res) => {
+    res.sendFile(PDF_PATH);
+});
+
+// Start server
 server.listen(PORT, () => console.log(`?? Server on port ${PORT}`));

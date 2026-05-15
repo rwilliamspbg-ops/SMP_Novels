@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>THE COGNOSCENT ECHO — Novel Viewer</title>
+<style>
+  :root{--bg:#0b0b0b;--panel:#151515;--panel2:#1f1f1f;--text:#f3f3f3;--muted:#b8b8b8;--outline:#000;--accent:#00ff5a;--accent2:#ff3b3b;--shadow:5px 5px 0 #000;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+  .bg{position:fixed;inset:0;pointer-events:none;z-index:0}
+  .bg::before{content:"";position:absolute;inset:-40px;background:
+    radial-gradient(circle at 20% 30%, rgba(0,255,90,.14), rgba(0,0,0,0) 45%),
+    radial-gradient(circle at 70% 40%, rgba(255,59,59,.10), rgba(0,0,0,0) 40%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.06) 0 1px, rgba(0,0,0,0) 1px 28px);
+    opacity:.7;filter:contrast(120%) saturate(120%)}
+  .bg::after{content:"";position:absolute;inset:0;background:repeating-linear-gradient(180deg, rgba(255,255,255,.03) 0 1px, rgba(0,0,0,0) 1px 20px);opacity:.5;mix-blend-mode:screen}
+
+  .wrap{position:relative;z-index:1;padding:18px;max-width:1100px;margin:0 auto}
+  .topbar{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;margin-bottom:14px}
+  .brand{background:var(--panel);border:3px solid var(--outline);box-shadow:var(--shadow);padding:14px 16px;max-width:740px}
+  .brand h1{margin:0 0 6px 0;font-size:22px;letter-spacing:.5px;text-transform:uppercase;line-height:1.1}
+  .brand p{margin:0;color:var(--muted);font-size:13px}
+
+  .controls{background:var(--panel);border:3px solid var(--outline);box-shadow:var(--shadow);padding:12px;min-width:320px}
+  .pageRow{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+  label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}
+  select, input[type="number"]{
+    width:100%;
+    border:3px solid var(--outline);
+    background:var(--panel2);
+    color:var(--text);
+    padding:10px;
+    font-size:14px;
+    box-shadow: 3px 3px 0 #000;
+    outline:none;
+  }
+  .btns{margin-top:10px;display:flex;gap:10px;flex-wrap:wrap}
+  button{
+    border:3px solid var(--outline);
+    background:var(--panel2);
+    color:var(--text);
+    padding:10px 12px;
+    font-weight:800;
+    letter-spacing:.4px;
+    cursor:pointer;
+    box-shadow: 3px 3px 0 #000;
+    user-select:none;
+  }
+  button:hover{transform:translate(-1px,-1px)}button:active{transform:translate(1px,1px)}
+
+  .grid{display:grid;grid-template-columns:320px 1fr;gap:14px;align-items:start}
+  @media (max-width: 900px){.grid{grid-template-columns:1fr}.controls{min-width:unset;width:100%}}
+
+  .panel{background:var(--panel);border:3px solid var(--outline);box-shadow:var(--shadow);overflow:hidden}
+  .chapters{padding:12px}
+  .chapters h2{margin:0 0 10px 0;font-size:14px;text-transform:uppercase;letter-spacing:.6px}
+  .hint{margin-top:10px;color:var(--muted);font-size:12px}
+  .statusline{margin-top:10px;font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+  .pill{border:2px solid #000;background:#111;padding:6px 10px;box-shadow:2px 2px 0 #000}
+
+  .viewer{padding:14px}
+  .frame{
+    width:100%;
+    height:62vh;
+    border:3px solid #000;
+    box-shadow:4px 4px 0 #000;
+    background:#0f0f0f;
+    display:block;
+  }
+  .smallNote{font-size:12px;color:var(--muted);margin-top:6px}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <h1>THE COGNOSCENT ECHO</h1>
+      <p>Brutalist PDF viewer · step-by-page · forged from your <b>THE_COGNOSCENT_ECHO.pdf</b>.</p>
+    </div>
+    <div class="controls">
+      <div class="pageRow">
+        <div style="flex:1 1 150px;">
+          <label for="pageNum">Page number</label>
+          <input id="pageNum" type="number" min="1" step="1" value="1" />
+          <div class="smallNote">Use Next/Prev for “hum pacing”.</div>
+        </div>
+      </div>
+
+      <div class="btns">
+        <button id="prevBtn" type="button">⟵ Prev</button>
+        <button id="nextBtn" type="button">Next ⟶</button>
+        <button id="jumpBtn" type="button">Jump</button>
+      </div>
+
+      <div class="statusline">
+        <span class="pill" id="statusPill">Loading…</span>
+        <span class="pill" id="pagePill">Page: 1</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="panel chapters">
+      <h2>Stepping</h2>
+      <div class="hint">
+        Uses the browser’s PDF page fragment:
+        <div style="margin-top:8px;border:2px solid #000;background:#111;padding:10px;box-shadow:2px 2px 0 #000">
+          <code style="font-weight:800">/novel.pdf#page=N</code>
+        </div>
+      </div>
+      <div class="hint">
+        If fragments fail in your browser, Next/Prev still reloads with the page fragment.
+      </div>
+    </div>
+
+    <div class="panel viewer">
+      <iframe id="pdfFrame" class="frame" src="/novel.pdf#page=1" type="application/pdf"></iframe>
+      <div class="hint">Immersion shell stays; the PDF page advances.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const pdfFrame = document.getElementById("pdfFrame");
+  const pageNum = document.getElementById("pageNum");
+  const statusPill = document.getElementById("statusPill");
+  const pagePill = document.getElementById("pagePill");
+
+  let page = 1;
+
+  function setPage(n){
+    const next = Math.max(1, Number.isFinite(n) ? n : 1);
+    page = next;
+    pageNum.value = String(page);
+    pagePill.textContent = "Page: " + page;
+    statusPill.textContent = "Loading page " + page + "…";
+    pdfFrame.src = "/novel.pdf#page=" + page;
+  }
+
+  pdfFrame.addEventListener("load", () => {
+    statusPill.textContent = "Ready.";
+  });
+
+  document.getElementById("prevBtn").onclick = () => setPage(page - 1);
+  document.getElementById("nextBtn").onclick = () => setPage(page + 1);
+  document.getElementById("jumpBtn").onclick = () => setPage(Number(pageNum.value));
+
+  pageNum.addEventListener("keydown", (e) => {
+    if(e.key === "Enter") setPage(Number(pageNum.value));
+  });
+
+  setPage(1);
+</script>
+</body>
+</html>
