@@ -19,6 +19,18 @@ jobs:
       - name: Prepare .env
         run: |
           if [ -f .env.example ]; then cp .env.example .env; else echo ".env.example not found" && exit 1; fi
+          # Ensure required keys are present and not empty for CI PR runs.
+          # Use safe dummy values so `npm run check-env` can validate presence without real secrets.
+          for k in JWT_SECRET STRIPE_SECRET_KEY MONGODB_URI DATABASE_URL REDIS_URL FRONTEND_URL; do
+            if grep -q "^${k}=" .env; then
+              val=$(grep "^${k}=" .env | cut -d'=' -f2-)
+              if [ -z "$val" ] || [ "$val" = "change_me_strong_secret" ] || [ "$val" = "sk_test_..." ]; then
+                sed -i -E "s|^(${k}=).*|\1ci_dummy|" .env
+              fi
+            else
+              echo "${k}=ci_dummy" >> .env
+            fi
+          done
 
       - name: Backend - install & check env
         run: |
