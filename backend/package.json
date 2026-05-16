@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "src/server.js",
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
     "@pinecone-database/pinecone": "^1.0.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
@@ -19,6 +20,7 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "check-env": "node scripts/check_env.js"
+    "check-env": "node scripts/check_env.js",
+    "dev": "node -r dotenv/config src/server_fastify.js"
   }
 }

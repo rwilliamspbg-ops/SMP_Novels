@@ -1,0 +1,50 @@
+name: PR CI
+
+on:
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  pr-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Prepare .env
+        run: |
+          if [ -f .env.example ]; then cp .env.example .env; else echo ".env.example not found" && exit 1; fi
+          # Ensure required keys are present and not empty for CI PR runs.
+          # Use safe dummy values so `npm run check-env` can validate presence without real secrets.
+          for k in JWT_SECRET STRIPE_SECRET_KEY MONGODB_URI DATABASE_URL REDIS_URL FRONTEND_URL; do
+            if grep -q "^${k}=" .env; then
+              val=$(grep "^${k}=" .env | cut -d'=' -f2-)
+              if [ -z "$val" ] || [ "$val" = "change_me_strong_secret" ] || [ "$val" = "sk_test_..." ]; then
+                sed -i -E "s|^(${k}=).*|\1ci_dummy|" .env
+              fi
+            else
+              echo "${k}=ci_dummy" >> .env
+            fi
+          done
+
+      - name: Backend - install & check env
+        run: |
+          cd backend
+          npm ci
+          npm run check-env
+
+      - name: Backend - npm audit
+        run: |
+          npm audit --omit=dev || true
+        working-directory: ./backend
+
+      - name: Frontend - install & audit
+        run: |
+          cd frontend
+          npm ci
+          npm audit --omit=dev || true
