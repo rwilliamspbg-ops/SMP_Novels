@@ -18,6 +18,7 @@ fastify.post('/choice', async (request, reply) => {
         const progress = await sagaEngine.makeChoice(userId, chapterId, choiceIndex);
         return { success: true, progress };
     } catch (e) {
+        console.error('Error in /choice:', e);
         reply.status(400).send({ error: e.message });
     }
 });
@@ -45,6 +46,7 @@ fastify.post('/governance/vote', async (request, reply) => {
         const tally = await govStore.recordVote(proposalId, optionId, userId);
         return { success: true, currentTally: tally };
     } catch (e) {
+        console.error('Error in /governance/vote:', e);
         reply.status(400).send({ error: e.message });
     }
 });

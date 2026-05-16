@@ -22,11 +22,37 @@ const { chromium } = require('playwright');
     logs.push(text);
   });
 
-  try {
-    await page.goto('http://localhost:3000', { waitUntil: 'networkidle' , timeout: 10000});
-  } catch (e) {
-    console.error('Navigation error:', e.message);
-    logs.push('Navigation error: ' + e.message);
+  // Try IPv4 host first to avoid IPv6/localhost resolution issues, then fall back to localhost
+  const targets = ['http://127.0.0.1:3000', 'http://localhost:3000'];
+  let navigated = false;
+  for (const t of targets) {
+    try {
+      await page.goto(t, { waitUntil: 'networkidle', timeout: 10000 });
+      navigated = true;
+      break;
+    } catch (e) {
+      console.error(`Navigation error to ${t}:`, e.message);
+      logs.push(`Navigation error to ${t}: ` + e.message);
+    }
+  }
+  if (!navigated) {
+    console.error('Navigation error: all targets failed — falling back to local file load');
+    logs.push('Navigation error: all targets failed');
+    try {
+      const indexPath = path.resolve(__dirname, '..', 'frontend', 'index.html');
+      if (fs.existsSync(indexPath)) {
+        const html = fs.readFileSync(indexPath, 'utf8');
+        // set a base so relative assets resolve when possible
+        const baseHtml = html.replace(/<head>/i, '<head><base href="http://127.0.0.1:3000/">');
+        await page.setContent(baseHtml, { waitUntil: 'networkidle' });
+        console.log('Loaded frontend from local file as fallback.');
+      } else {
+        console.error('Local index.html not found:', indexPath);
+      }
+    } catch (e) {
+      console.error('Fallback file load failed:', e.message);
+      logs.push('Fallback file load failed: ' + e.message);
+    }
   }
 
   // give the page some time to run scripts

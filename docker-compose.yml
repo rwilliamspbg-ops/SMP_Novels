@@ -32,10 +32,10 @@ services:
     env_file:
       - .env
     environment:
-      - MONGODB_URI=${MONGODB_URI}
+      - MONGODB_URI=mongodb://mongodb:27017/interactive_novel
       - JWT_SECRET=${JWT_SECRET}
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=${REDIS_URL}
+      - DATABASE_URL=postgresql://user:pass@postgres:5432/echo_db
+      - REDIS_URL=redis://redis:6379
     depends_on:
       - mongodb
       - postgres
