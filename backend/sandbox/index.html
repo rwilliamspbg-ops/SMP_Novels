@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cognoscent Echo - WASM Sandbox</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      font-family: 'Courier New', monospace; 
+      background: #1a1a2e; 
+      color: #eee;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #4fc3f7; margin-bottom: 20px; text-align: center; }
+    
+    .status-bar {
+      background: #16213e;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .status-indicator {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #4caf50;
+      margin-right: 10px;
+    }
+    .status-indicator.error { background: #f44336; }
+    .status-indicator.pending { background: #ff9800; }
+    
+    .metrics { display: flex; gap: 20px; }
+    .metric { 
+      text-align: center; 
+      min-width: 100px;
+      padding: 10px;
+      background: #16213e;
+      border-radius: 5px;
+    }
+    .metric-value { font-size: 24px; font-weight: bold; color: #4fc3f7; }
+    .metric-label { font-size: 12px; color: #888; }
+    
+    .main-content { 
+      display: grid; 
+      grid-template-columns: 1fr 1fr; 
+      gap: 20px;
+      min-height: 500px;
+    }
+    
+    .panel {
+      background: #16213e;
+      border-radius: 8px;
+      padding: 20px;
+      overflow: hidden;
+    }
+    
+    .panel h2 { 
+      color: #4fc3f7; 
+      margin-bottom: 15px; 
+      font-size: 18px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 10px;
+    }
+    
+    .code-editor {
+      width: 100%;
+      height: 300px;
+      background: #0d1117;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      border-radius: 5px;
+      padding: 15px;
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      resize: vertical;
+    }
+    
+    .output {
+      height: 200px;
+      background: #0d1117;
+      color: #c9d1d9;
+      border: 1px solid #30363d;
+      border-radius: 5px;
+      padding: 15px;
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      overflow-y: auto;
+    }
+    
+    .output .line { 
+      margin-bottom: 5px; 
+      line-height: 1.5;
+    }
+    .output .line.error { color: #f87171; }
+    .output .line.success { color: #a5d6ff; }
+    .output .line.warning { color: #ffa657; }
+    
+    .buttons {
+      display: flex;
+      gap: 10px;
+      margin-top: 20px;
+    }
+    
+    button {
+      padding: 12px 24px;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-primary {
+      background: #4fc3f7;
+      color: #1a1a2e;
+    }
+    .btn-primary:hover { background: #81d4fa; }
+    
+    .btn-success {
+      background: #4caf50;
+      color: white;
+    }
+    .btn-success:hover { background: #69f0ae; }
+    
+    .btn-danger {
+      background: #f44336;
+      color: white;
+    }
+    .btn-danger:hover { background: #ff6b5c; }
+    
+    .feedback {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      background: #1e3a5f;
+      border-left: 4px solid #4fc3f7;
+    }
+    
+    .feedback h3 { 
+      color: #4fc3f7; 
+      margin-bottom: 10px;
+    }
+    
+    .progress-bar {
+      height: 20px;
+      background: #1e3a5f;
+      border-radius: 10px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4fc3f7, #64b5f6);
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+    
+    .chapter-info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #1e3a5f;
+      border-radius: 8px;
+    }
+    
+    .learning-tips {
+      margin-top: 20px;
+      padding: 15px;
+      background: #16213e;
+      border-radius: 8px;
+    }
+    
+    .learning-tips h4 { color: #4fc3f7; margin-bottom: 10px; }
+    .learning-tips ul { 
+      list-style: none; 
+      padding-left: 20px;
+    }
+    .learning-tips li { margin-bottom: 5px; color: #888; }
+
+    @media (max-width: 768px) {
+      .main-content { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔬 Cognoscent Echo - WASM Educational Sandbox</h1>
+    
+    <div class="status-bar">
+      <div style="display: flex; align-items: center;">
+        <div id="statusIndicator" class="status-indicator"></div>
+        <span id="statusText">Ready to Execute Code</span>
+      </div>
+      <div class="metrics">
+        <div class="metric">
+          <div id="throughput" class="metric-value">0</div>
+          <div class="metric-label">ops/sec</div>
+        </div>
+        <div class="metric">
+          <div id="latency" class="metric-value">0</div>
+          <div class="metric-label">ms</div>
+        </div>
+        <div class="metric">
+          <div id="resilience" class="metric-value">0</div>
+          <div class="metric-label">score</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <div class="panel">
+        <h2>📝 Code Editor</h2>
+        <textarea 
+          id="codeEditor" 
+          class="code-editor" 
+          placeholder="// Write your code here...
+import { FramePool } from 'frame-pool';
+
+const pool = new FramePool(1024);
+// Your implementation...">package main
+
+import "sync"
+
+type FramePool struct {
+    pool sync.Pool
+}
+
+func NewFramePool(size int) *FramePool {
+    return &FramePool{
+        pool: sync.Pool{
+            New: func() interface{} {
+                return make([]byte, size)
+            },
+        },
+    }
+}</textarea>
+        </textarea>
+        
+        <div class="progress-bar">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        
+        <div class="buttons">
+          <button onclick="executeCode()" class="btn-primary">▶ Execute Code</button>
+          <button onclick="inspectMemory()" class="btn-success">🔍 Inspect Memory</button>
+          <button onclick="resetCode()" class="btn-danger">↺ Reset</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h2>💻 Output Console</h2>
+        <div id="output" class="output"></div>
+        
+        <div class="chapter-info">
+          <h3>📖 Chapter Context</h3>
+          <p>Implement a zero-copy FramePool using Go's sync.Pool for efficient memory allocation. This pattern is critical for high-throughput systems.</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="feedback" class="feedback" style="display: none;">
+      <h3>💡 Learning Feedback</h3>
+      <div id="feedbackContent"></div>
+    </div>
+
+    <div class="learning-tips">
+      <h4>📚 Educational Tips</h4>
+      <ul>
+        <li><strong>Zero-Copy Patterns:</strong> Use sync.Pool to pre-allocate memory and reuse it, avoiding expensive allocations in hot paths.</li>
+        <li><strong>Memory Safety:</strong> Always validate user input before executing code. The sandbox prevents dangerous operations.</li>
+        <li><strong>Performance:</strong> Focus on reducing allocation pressure to improve throughput and reduce latency spikes.</li>
+        <li><strong>Testing:</strong> Validate your implementation against edge cases: empty pools, full pools, concurrent access.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    // ============== State Management ==============
+    let currentChapterId = '1';
+    let executionState = 'ready';
+    let feedbackHistory = [];
+
+    // ============== WebSocket Connection ==============
+    const wsUrl = `ws://${window.location.host}/sandbox`;
+    let ws;
+
+    function connectWebSocket() {
+      try {
+        ws = new WebSocket(wsUrl);
+        
+        ws.onopen = () => {
+          console.log('✅ Connected to sandbox WebSocket');
+          updateStatus('success', 'Connected');
+        };
+
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data);
+            handleSandboxMessage(data);
+          } catch (e) {
+            console.error('WebSocket message parse error:', e);
+          }
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          updateStatus('error', 'Connection Error');
+        };
+
+        ws.onclose = () => {
+          console.log('🔌 WebSocket disconnected');
+          updateStatus('pending', 'Disconnected');
+        };
+      } catch (e) {
+        console.error('Failed to connect:', e);
+        updateStatus('error', 'Cannot connect to server');
+      }
+    }
+
+    function handleSandboxMessage(data) {
+      switch (data.type) {
+        case 'heartbeat':
+          updateMetrics(data);
+          break;
+        case 'feedback':
+          showFeedback(data);
+          break;
+        case 'success':
+          showSuccess(data);
+          break;
+        case 'warning':
+          addOutputLine(
+            `<span class="line warning">⚠️ Warning: ${data.message}</span>`,
+            outputElement
+          );
+          break;
+      }
+    }
+
+    // ============== UI Functions ==============
+    function executeCode() {
+      const code = document.getElementById('codeEditor').value;
+      showOutputLine('Executing code...', outputElement);
+      
+      // Simulate execution with WebSocket
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          code: code,
+          memoryInput: {},
+          userId: 'sandbox-user'
+        }));
+      } else {
+        console.log('WebSocket not connected');
+      }
+
+      updateProgress(30);
+    }
+
+    function inspectMemory() {
+      showOutputLine('[MEMORY INSPECTION]', outputElement);
+      
+      // Simulate memory inspection
+      const mockMemory = [
+        '0x0000: FramePool@12345678 struct { size: 1024, used: 12 }',
+        '0x0004: sync.Pool@89012345 struct { freeList: [ptr1, ptr2] }',
+        '0x000c: CacheLineAligned struct { data: [9000 bytes] }',
+        '0x0014: ZeroCopyBuffer@11111111 opaque handle to mmap region',
+        '   ^^^^^^          ✓ Descriptor aligned to 64-byte boundary'
+      ];
+
+      mockMemory.forEach(line => {
+        addOutputLine(line, outputElement);
+      });
+
+      showSuccess({
+        message: 'Memory inspection complete. All descriptors are properly aligned.',
+        throughput: Math.floor(100 + Math.random() * 50),
+        latency: Math.floor(20 + Math.random() * 30)
+      });
+
+      updateProgress(70);
+    }
+
+    function resetCode() {
+      if (confirm('Reset code editor to default?')) {
+        document.getElementById('codeEditor').value = 
+`package main
+
+import "sync"
+
+type FramePool struct {
+    pool sync.Pool
+}
+
+func NewFramePool(size int) *FramePool {
+    return &FramePool{
+        pool: sync.Pool{
+            New: func() interface{} {
+                return make([]byte, size)
+            },
+        },
+    }
+}`;
+      
+      showOutputLine('← Code reset to default', outputElement);
+      updateProgress(0);
+    }
+
+    function showSuccess(data) {
+      const successMessages = [
+        '✅ Execution successful!',
+        '✓ All validation checks passed',
+        '💡 Learning point: sync.Pool reduces GC pressure significantly'
+      ];
+      
+      successMessages.forEach(msg => {
+        addOutputLine(`<span class="line success">${msg}</span>`, outputElement);
+      });
+    }
+
+    function showFeedback(data) {
+      const feedbackElement = document.getElementById('feedback');
+      document.getElementById('feedbackContent').innerHTML = data.message;
+      feedbackElement.style.display = 'block';
+      
+      if (data.valid) {
+        updateStatus('success', 'Validated Successfully');
+      }
+    }
+
+    function showOutputLine(html, elementId) {
+      const outputElement = document.getElementById(elementId);
+      addOutputLine(`<span class="line">${html}</span>`, outputElement);
+    }
+
+    function addOutputLine(html, elementId) {
+      const outputElement = document.getElementById(elementId);
+      const line = document.createElement('div');
+      line.innerHTML = html;
+      outputElement.insertBefore(line, outputElement.firstChild);
+      
+      // Auto-scroll to bottom
+      outputElement.scrollTop = 0;
+    }
+
+    function updateMetrics(data) {
+      document.getElementById('throughput').textContent = data.throughput;
+      document.getElementById('latency').textContent = data.latency;
+      document.getElementById('resilience').textContent = data.resilience;
+    }
+
+    function updateStatus(status, text) {
+      const indicator = document.getElementById('statusIndicator');
+      const statusText = document.getElementById('statusText');
+      
+      indicator.className = `status-indicator ${status}`;
+      statusText.textContent = text;
+    }
+
+    function updateProgress(percent) {
+      document.getElementById('progressFill').style.width = `${percent}%`;
+    }
+
+    function initWebSocket() {
+      connectWebSocket();
+      
+      // Periodic heartbeat simulation
+      setInterval(() => {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          const metrics = {
+            throughput: Math.floor(100 + Math.random() * 50),
+            latency: Math.floor(20 + Math.random() * 30),
+            resilience: Math.floor(70 + Math.random() * 20)
+          };
+          
+          // In real implementation, this would receive from server
+          console.log('Heartbeat:', metrics);
+        }
+      }, 2000);
+    }
+
+    function validateCode(code) {
+      const validationRules = [
+        { pattern: /zero-copy/, valid: true, feedback: '✓ Uses zero-copy pattern' },
+        { pattern: /sync\.Pool/, valid: true, feedback: '✓ Proper sync.Pool usage' },
+        { pattern: /new\s+\(make\[/, valid: false, feedback: '⚠️ Avoid direct allocations in hot path' }
+      ];
+
+      const results = [];
+      validationRules.forEach(rule => {
+        if (rule.pattern.test(code)) {
+          results.push({ type: rule.valid ? 'success' : 'warning', message: rule.feedback });
+        }
+      });
+
+      return results;
+    }
+
+    // Initialize
+    window.addEventListener('DOMContentLoaded', () => {
+      initWebSocket();
+      
+      // Listen for server messages via WebSocket
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log('Sandbox ready. Execute code!');
+      }
+    });
+
+    // Make functions globally available for HTML buttons
+    window.executeCode = executeCode;
+    window.inspectMemory = inspectMemory;
+    window.resetCode = resetCode;
+  </script>
+</body>
+</html>

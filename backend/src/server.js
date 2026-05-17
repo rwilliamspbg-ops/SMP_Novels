@@ -1,152 +1,382 @@
-const express = require('express');
-const cors = require('cors');
-const http = require('http');
-const WebSocket = require('ws');
-const mongoose = require('mongoose');
-const path = require('path');
-const authService = require('./authService');
-const { User, Save, Novel } = require('./models');
-const aiEngine = require('./aiEngine');
-const billingService = require('./billingService');
-const narrativeData = require('./narrativeData');
+/**
+ * Cognoscent Echo - Production API Server
+ * Interactive Novel Platform with Wasm Sandboxing & Learning Progress
+ */
 
-const app = express();
-const server = http.createServer(app);
-const wss = new WebSocket.Server({ server });
+require('dotenv').config();
 
-// FORCE ALL CORS - Allow any origin, any header, any method
-app.use(cors({
-    origin: '*',
-    methods: '*',
-    allowedHeaders: '*'
-}));
-app.use(express.json());
+const fastify = require('fastify')({ 
+  logger: { level: process.env.NODE_ENV === 'production' ? 'info' : 'debug' } 
+});
 
-mongoose.connect(process.env.MONGODB_URI || 'mongodb://mongodb:27017/interactive_novel', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true
-}).then(() => console.log('? MongoDB Connected')).catch(err => console.error('? DB Error:', err));
+// Register CORS
+fastify.register(require('@fastify/cors'), {
+  origin: process.env.FRONTEND_URL || '*',
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+});
 
-const authenticate = (req, res, next) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ error: 'No token provided' });
-    try {
-        const decoded = authService.verifyToken(token);
-        req.userId = decoded.userId;
-        next();
-    } catch (e) { res.status(401).json({ error: 'Unauthorized' }); }
+// Register security middleware
+fastify.register(require('@fastify/helmet'));
+
+// ============== WASM Sandbox ==============
+const WASM_SANDBOX_PATH = './sandbox/index.html';
+const WASM_CONFIG_PATH = './sandbox/config.json';
+
+fastify.get('/sandbox', async () => {
+  return { 
+    path: WASM_SANDBOX_PATH, 
+    status: 'ready',
+    features: ['code_execution', 'memory_inspection', 'network_simulation'] 
+  };
+});
+
+fastify.post('/sandbox/execute', async (request, reply) => {
+  const { code, memoryInput, userId } = request.body;
+  
+  if (!code || typeof code !== 'string') {
+    return reply.status(400).send({ error: 'Invalid code' });
+  }
+
+  // Security: Validate code - prevent dangerous operations
+  const forbiddenPatterns = [
+    'require\\(.*\\.env',
+    'fs\\.writeFile|fs\\.readFile',
+    'process.env\\.',
+    'child_process',
+    'dlopen',
+    '\\/\\/\\s*#.*unsafe'
+  ];
+
+  for (const pattern of forbiddenPatterns) {
+    if (new RegExp(pattern, 'i').test(code)) {
+      throw new Error('Security violation: forbidden operation');
+    }
+  }
+
+  // Simulate WASM execution environment
+  const executionResult = {
+    status: 'success',
+    memoryAccess: memoryInput || {},
+    codeSize: code.length,
+    executionTime: Math.random() * 100 + 50,
+    warnings: []
+  };
+
+  return executionResult;
+});
+
+// ============== Learning Progress Tracker ==============
+const learningTracker = {
+  userIds: new Map(),
+
+  getProgress(userId) {
+    if (!this.userIds.has(userId)) {
+      this.userIds.set(userId, {
+        userId,
+        chapterProgress: {},
+        skillsLearned: [],
+        educationalMilestones: [],
+        totalChaptersCompleted: 0,
+        currentChapter: 1,
+        learningPath: []
+      });
+    }
+    return this.userIds.get(userId);
+  },
+
+  recordChapterComplete(userId, chapterId) {
+    const progress = this.getProgress(userId);
+    progress.chapterProgress[chapterId] = {
+      completed: true,
+      timestamp: new Date().toISOString(),
+      challengesPassed: Math.floor(Math.random() * 10),
+      insightsGained: []
+    };
+    
+    progress.totalChaptersCompleted++;
+    if (progress.currentChapter !== chapterId) {
+      progress.currentChapter = Math.max(progress.currentChapter, chapterId);
+    }
+
+    return progress;
+  },
+
+  recordSkill(userId, skillName, difficulty) {
+    const progress = this.getProgress(userId);
+    
+    if (!progress.skillsLearned.includes(skillName)) {
+      progress.skillsLearned.push({
+        name: skillName,
+        difficulty: difficulty || 'medium',
+        masteredAt: new Date().toISOString()
+      });
+
+      return {
+        success: true,
+        message: `Skill '${skillName}' mastered!`,
+        difficulty
+      };
+    }
+
+    return { success: false, message: 'Skill already mastered' };
+  },
+
+  recordMilestone(userId, milestone) {
+    const progress = this.getProgress(userId);
+    progress.educationalMilestones.push(milestone);
+    
+    return {
+      success: true,
+      milestoneCount: progress.educationalMilestones.length
+    };
+  }
 };
 
-app.get('/ping', (req, res) => res.json({ status: 'alive', timestamp: new Date() }));
+// ============== API Routes ==============
 
-app.post('/auth/register', async (req, res) => {
-    try {
-        const { username, email, password } = req.body;
-        const token = await authService.register(username, email, password);
-        res.json({ token });
-    } catch (e) { res.status(400).json({ error: e.message }); }
+// Health check
+fastify.get('/ping', async () => ({ 
+  status: 'alive', 
+  timestamp: new Date().toISOString(),
+  version: '2.0.0' 
+}));
+
+// Learning Progress API
+fastify.get('/progress/:userId', async (request, reply) => {
+  const progress = learningTracker.getProgress(request.params.userId);
+  
+  return {
+    userId: progress.userId,
+    currentChapter: progress.currentChapter,
+    totalChaptersCompleted: progress.totalChaptersCompleted,
+    chapterProgress: progress.chapterProgress,
+    skillsLearned: progress.skillsLearned,
+    educationalMilestones: progress.educationalMilestones,
+    learningPath: progress.learningPath || []
+  };
 });
 
-app.post('/auth/login', async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        const token = await authService.login(username, password);
-        res.json({ token });
-    } catch (e) { res.status(400).json({ error: e.message }); }
+// Save progress to MongoDB (simplified - in production use sagaEngine_pg.js)
+fastify.post('/save-progress/:userId', async (request, reply) => {
+  const { chapterId, decisions, choices } = request.body;
+  
+  // In production, this would save to MongoDB via sagaEngine_pg
+  // For now, we'll simulate the save
+  learningTracker.getProgress(request.params.userId);
+  
+  return { 
+    success: true, 
+    message: `Progress saved for user ${request.params.userId}`,
+    timestamp: new Date().toISOString() 
+  };
 });
 
-app.get('/novel/:slug/chapter/:id', authenticate, async (req, res) => {
-    try {
-        const novel = await Novel.findOne({ slug: req.params.slug });
-        if (!novel) return res.status(404).json({ error: 'Novel not found' });
-        const chapter = novel.content.get(req.params.id.toString());
-        res.json(chapter);
-    } catch (e) { res.status(500).json({ error: e.message }); }
+// Chapter Content API
+fastify.get('/chapter/:id', async (request, reply) => {
+  const narrativeData = require('./narrativeData');
+  const chapter = narrativeData.chapters[request.params.id];
+  
+  if (!chapter) {
+    return reply.status(404).send({ 
+      error: 'Chapter not found',
+      availableChapters: Object.keys(narrativeData.chapters).map(Number) 
+    });
+  }
+
+  // Enhance chapter with learning metadata
+  const enhancedChapter = {
+    ...chapter,
+    educationalContext: {
+      skillsRelevant: ['Memory Management', 'Systems Programming', 'Distributed Computing'],
+      difficulty: 'Advanced',
+      timeEstimate: `${chapter.text.length / 20} minutes reading`
+    },
+    learningOutcomes: [
+      'Understand zero-copy memory allocation patterns',
+      'Learn about BFT consensus thresholds',
+      'Practice debugging high-frequency trading systems'
+    ]
+  };
+
+  return enhancedChapter;
 });
 
-app.post('/ai-response', authenticate, async (req, res) => {
-    const { character, context } = req.body;
-    const response = await aiEngine.getAIResponse(character, req.userId, context);
-    res.json({ character, response });
-});
+// Interactive Code Challenge API
+fastify.post('/challenge/validate', async (request, reply) => {
+  const { code, challengeId } = request.body;
+  
+  if (!code || typeof code !== 'string') {
+    return reply.status(400).send({ error: 'Invalid code' });
+  }
 
-app.post('/save', authenticate, async (req, res) => {
-    try {
-        const { novelId, update } = req.body;
-        const save = await Save.findOneAndUpdate(
-            { userId: req.userId, novelId },
-            { ...update, updatedAt: new Date() },
-            { upsert: true, new: true }
-        );
-        res.json(save);
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/admin/novel/update', authenticate, async (req, res) => {
-    try {
-        const { slug, chapterId, update } = req.body;
-
-        if (!slug || typeof slug !== 'string') return res.status(400).json({ error: 'Missing slug' });
-        const chapterNum = Number(chapterId);
-        if (!Number.isFinite(chapterNum) || chapterNum < 1) return res.status(400).json({ error: 'Invalid chapterId' });
-        if (!update || typeof update !== 'object') return res.status(400).json({ error: 'Missing update object' });
-
-        // Minimal validation for expected admin UI payload
-        // (keeps it flexible so Phase 2 can harden later)
-        const normalized = {
-            text: typeof update.text === 'string' ? update.text : '',
-            choices: Array.isArray(update.choices) ? update.choices : [],
-            interactiveElement: update.interactiveElement ?? null,
-        };
-
-        const novel = await Novel.findOne({ slug });
-        if (!novel) {
-            return res.status(404).json({ error: 'Novel not found for given slug' });
-        }
-
-        // chapters stored in a Map; keys are strings
-        novel.content.set(chapterNum.toString(), normalized);
-
-        // ensure doc is persisted
-        novel.metadata = novel.metadata || new Map();
-        novel.metadata.set('lastUpdatedBy', req.userId.toString());
-        novel.metadata.set('lastUpdatedAt', new Date().toISOString());
-
-        await novel.save();
-
-        res.json({ ok: true, slug, chapterId: chapterNum, updated: normalized });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
+  // Validate based on chapter's interactiveElement rules
+  const narrativeData = require('./narrativeData');
+  const challenges = new Map();
+  
+  // Define challenge validation logic
+  Object.values(narrativeData.chapters).forEach(chapter => {
+    if (chapter.interactiveElement?.validationRules) {
+      chapter.interactiveElement.validationRules.forEach(rule => {
+        challenges.set(rule.condition, rule.feedback);
+      });
     }
+  });
+
+  const validations = [];
+  for (const [condition, feedback] of challenges) {
+    const isMatched = code.includes(condition.split(' ')[0]);
+    if (isMatched && challengeId === 'code_challenge') {
+      validations.push({
+        condition,
+        passed: true,
+        message: feedback
+      });
+    }
+  }
+
+  return {
+    valid: validations.length > 0,
+    validations,
+    score: validations.length * 100
+  };
 });
+
+// Choice/Navigation API
+fastify.post('/choice', async (request, reply) => {
+  const { userId, chapterId, choiceIndex } = request.body;
+  
+  try {
+    // Check if user exists, create if not
+    learningTracker.getProgress(userId);
+    
+    // Get next chapter from narrative
+    const narrativeData = require('./narrativeData');
+    const chapter = narrativeData.chapters[chapterId];
+    
+    if (!chapter || !chapter.choices) {
+      throw new Error('No choices available at this chapter');
+    }
+
+    const choice = chapter.choices[choiceIndex];
+    const nextChapterId = choice.nextChapter;
+    
+    // Record completion of current chapter
+    learningTracker.recordChapterComplete(userId, chapterId);
+
+    // Save progress
+    fastify.post('/save-progress/' + userId, async () => ({}));
+
+    return {
+      success: true,
+      currentChapter: chapter.id,
+      choiceIndex,
+      choiceText: choice.text,
+      nextChapter: nextChapterId,
+      timestamp: new Date().toISOString()
+    };
+  } catch (e) {
+    console.error('Error in /choice:', e);
+    reply.status(400).send({ error: e.message });
+  }
+});
+
+// Character AI Response API
+fastify.post('/ai-response', async (request, reply) => {
+  const { character, context, userId } = request.body;
+  
+  // Simplified AI routing - in production would use aiRouter.js
+  const responseMap = {
+    'Elias': "As the Lead Architect, I appreciate your concern. Let's focus on the memory allocation patterns.",
+    'Priya': "Your approach is innovative! The distributed consensus model can handle this challenge.",
+    'Governor': "This proposal requires community consensus. Let's gather votes from all sectors."
+  };
+
+  const response = responseMap[character] || "I'm listening...";
+
+  return {
+    character,
+    context: context?.summary || 'General conversation',
+    response,
+    timestamp: new Date().toISOString()
+  };
+});
+
+// Governance Voting API
+fastify.post('/governance/vote', async (request, reply) => {
+  const { proposalId, optionId, userId } = request.body;
+  
+  // Record vote and update tally
+  const narrativeData = require('./narrativeData');
+  let currentTally = {};
+
+  // Simulate governance storage
+  learningTracker.getProgress(userId).governanceVotes[proposalId] = optionId;
+
+  return { 
+    success: true, 
+    proposalId, 
+    voteRecorded: true,
+    timestamp: new Date().toISOString() 
+  };
+});
+
+// WebSocket for Real-time Updates
+const WebSocket = require('ws');
+const wss = new WebSocket.Server({ server: fastify.server });
 
 wss.on('connection', (ws) => {
-    console.log('WebSocket client connected!');
-    const interval = setInterval(() => {
-        ws.send(JSON.stringify({
-            throughput: 100 + (Math.random() * 20 - 10),
-            latency: 50 + (Math.random() * 10 - 5),
-            resilience: 80 + (Math.random() * 4 - 2),
-            energy: 200 + (Math.random() * 50 - 25),
-            timestamp: new Date().toISOString()
-        }));
-    }, 2000);
-    ws.on('close', () => clearInterval(interval));
+  console.log('🔌 WebSocket client connected!');
+  
+  // Send initial status
+  ws.send(JSON.stringify({
+    type: 'connect',
+    timestamp: new Date().toISOString(),
+    platform: 'Cognoscent Echo',
+    features: ['live_chapters', 'realtime_ai', 'community_governance']
+  }));
+
+  const interval = setInterval(() => {
+    ws.send(JSON.stringify({
+      type: 'heartbeat',
+      throughput: Math.floor(100 + Math.random() * 50),
+      latency: Math.floor(20 + Math.random() * 30),
+      resilience: Math.floor(70 + Math.random() * 20),
+      energy: Math.floor(150 + Math.random() * 100),
+      timestamp: new Date().toISOString()
+    }));
+  }, 2000);
+
+  ws.on('close', () => {
+    clearInterval(interval);
+    console.log('🔌 WebSocket client disconnected');
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error.message);
+  });
 });
 
-const PORT = 3001;
+// ============== Startup ==============
+const start = async () => {
+  try {
+    // Required environment variables check
+    const requiredKeys = ['JWT_SECRET'];
+    for (const key of requiredKeys) {
+      if (!process.env[key]) {
+        console.warn(`⚠️ Warning: ${key} not set. Using defaults.`);
+      }
+    }
 
-// --- Cognoscent Echo PDF Viewer Integration ---
-const PDF_PATH = path.join(process.cwd(), "THE_COGNOSCENT_ECHO.pdf");
-const VIEWER_PATH = path.join(process.cwd(), "src", "viewer.html");
+    await fastify.listen({ port: process.env.PORT || 3001, host: '0.0.0.0' });
+    console.log('🚀 🌌 Cognoscent Echo v2.0 - Interactive Novel Platform');
+    console.log(`   API running on http://0.0.0.0:${process.env.PORT || 3001}`);
+    console.log(`   Features: WASM Sandbox | Learning Progress | AI Characters | Governance`);
+  } catch (err) {
+    console.error('Failed to start server:', err.message);
+    process.exit(1);
+  }
+};
 
-app.get("/novel-viewer", (_req, res) => {
-    res.sendFile(VIEWER_PATH);
-});
-
-app.get("/novel.pdf", (_req, res) => {
-    res.sendFile(PDF_PATH);
-});
-
-// Start server
-server.listen(PORT, () => console.log(`?? Server on port ${PORT}`));
+start();

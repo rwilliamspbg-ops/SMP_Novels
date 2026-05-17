@@ -1,10 +1,15 @@
 {
-  "name": "interactive-novel-frontend",
-  "version": "1.0.0",
+  "name": "cognoscent-echo-frontend",
+  "version": "2.0.0",
+  "description": "AI-Powered Interactive Novel Platform with DeepMind A2UI, CopilotKit & AG-UI",
   "scripts": {
-    "start": "serve ."
+    "start": "npx serve .",
+    "dev": "npx serve ."
   },
   "dependencies": {
+    "@copilotkit/react-core": "^1.7.45",
+    "@copilotkit/react-ui": "^1.7.45",
     "serve": "^14.2.1"
-  }
+  },
+  "devDependencies": {}
 }

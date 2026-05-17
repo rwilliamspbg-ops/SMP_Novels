@@ -1,0 +1,41 @@
+{
+  "version": "1.0.0",
+  "name": "cognoscent-sandbox",
+  "description": "Educational WASM sandbox for Cognoscent Echo Interactive Novel",
+  "features": [
+    "Secure code execution environment",
+    "Memory inspection tools",
+    "Network simulation layer",
+    "Educational content delivery",
+    "Real-time feedback and validation"
+  ],
+  "security": {
+    "allowedModules": true,
+    "isolatedMemory: false",
+    "preventSyscalls": true,
+    "allowedFilesystemPaths": [],
+    "networkDisabled": true,
+    "exposedPorts": []
+  },
+  "validation": {
+    "enableTypeChecking": true,
+    "maxExecutionTime": 5000,
+    "memoryLimit": "64MB",
+    "allowedImports": ["*"]
+  },
+  "learning": {
+    "autoGenerateExplanations": true,
+    "showHints": true,
+    "trackProgress": true,
+    "educationalMilestones": [
+      "first_execution",
+      "memory_inspection",
+      "optimization_success"
+    ]
+  },
+  "endpoints": {
+    "execute": "/sandbox/execute",
+    "inspect": "/sandbox/inspect",
+    "validate": "/sandbox/validate"
+  }
+}
