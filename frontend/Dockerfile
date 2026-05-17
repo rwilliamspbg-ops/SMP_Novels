@@ -7,4 +7,4 @@ COPY . .
 RUN addgroup --system app && adduser --system --ingroup app app
 USER app
 EXPOSE 3000
-CMD ["npx", "serve", "-s", ".", "-p", "3000"]
+CMD ["node", "server.js"]

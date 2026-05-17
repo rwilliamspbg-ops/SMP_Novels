@@ -5,8 +5,15 @@ const narrativeData = require('./narrativeData');
 const aiEngine = require('./aiEngine');
 const aiRouter = require('./aiRouter');
 const govStore = require('./governanceStore_redis');
+const WebSocket = require('ws');
 
 fastify.register(cors, { origin: '*', methods: '*' });
+
+const wss = new WebSocket.Server({ server: fastify.server });
+
+fastify.get('/ping', async () => {
+    return { status: 'alive', timestamp: new Date().toISOString() };
+});
 
 fastify.get('/progress/:userId', async (request, reply) => {
     return await sagaEngine.getReaderProgress(request.params.userId);
@@ -18,6 +25,7 @@ fastify.post('/choice', async (request, reply) => {
         const progress = await sagaEngine.makeChoice(userId, chapterId, choiceIndex);
         return { success: true, progress };
     } catch (e) {
+        console.error('Error in /choice:', e);
         reply.status(400).send({ error: e.message });
     }
 });
@@ -45,8 +53,24 @@ fastify.post('/governance/vote', async (request, reply) => {
         const tally = await govStore.recordVote(proposalId, optionId, userId);
         return { success: true, currentTally: tally };
     } catch (e) {
+        console.error('Error in /governance/vote:', e);
         reply.status(400).send({ error: e.message });
     }
+});
+
+wss.on('connection', (ws) => {
+    console.log('WebSocket client connected!');
+    const interval = setInterval(() => {
+        ws.send(JSON.stringify({
+            throughput: 100 + (Math.random() * 20 - 10),
+            latency: 50 + (Math.random() * 10 - 5),
+            resilience: 80 + (Math.random() * 4 - 2),
+            energy: 200 + (Math.random() * 50 - 25),
+            timestamp: new Date().toISOString()
+        }));
+    }, 2000);
+
+    ws.on('close', () => clearInterval(interval));
 });
 
 const start = async () => {

@@ -1,4 +1,4 @@
-﻿const API_BASE = 'http://localhost:3001';
+﻿const API_BASE = '/api';
 const USER_ID = 'reader-' + Math.random().toString(36).substr(2, 9);
 
 async function bridgeChoice(chapterId, choiceIndex) {
