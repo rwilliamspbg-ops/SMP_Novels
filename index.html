@@ -17,7 +17,8 @@
                             gray: '#171717',
                             neon: '#00ff41',
                             red: '#ff003c',
-                            blue: '#00f0ff'
+                            blue: '#00f0ff',
+                            dim: 'rgba(0, 255, 65, 0.05)'
                         }
                     },
                     fontFamily: {
@@ -28,24 +29,48 @@
             }
         }
     </script>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        :root {
+            --neon: #00ff41;
+            --red: #ff003c;
+            --blue: #00f0ff;
+            --bg: #000;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+        }
 
         body {
-            background-color: #000;
-            color: #00ff41; /* Default Matrix green text */
+            background-color: var(--bg);
+            color: var(--neon);
             font-family: 'Inter', sans-serif;
-            background-image: 
+            background-image:
                 radial-gradient(circle at 50% 50%, rgba(0, 255, 65, 0.05) 0%, transparent 60%),
                 linear-gradient(rgba(0, 255, 65, 0.03) 1px, transparent 1px),
                 linear-gradient(90deg, rgba(0, 255, 65, 0.03) 1px, transparent 1px);
-            background-size: 100% 100%, 20px 20px, 20px 20px;
+            background-size: 100% 100%, 24px 24px, 24px 24px;
         }
 
-        /* Glitch Effect */
+        /* Performance: contain paint for animated elements */
+        .gpu-layer {
+            will-change: transform, opacity;
+            contain: layout style paint;
+        }
+
+        /* Glitch Effect - Optimized */
         .glitch-text {
             position: relative;
+            display: inline-block;
         }
         .glitch-text::before, .glitch-text::after {
             content: attr(data-text);
@@ -55,192 +80,262 @@
             width: 100%;
             height: 100%;
             opacity: 0.8;
+            pointer-events: none;
         }
         .glitch-text::before {
             left: 2px;
-            text-shadow: -1px 0 #ff003c;
-            clip: rect(24px, 550px, 90px, 0);
-            animation: glitch-anim-2 3s infinite linear alternate-reverse;
+            text-shadow: -2px 0 var(--red);
+            clip-path: inset(20% 0 60% 0);
+            animation: glitch-1 3s infinite linear alternate-reverse;
         }
         .glitch-text::after {
             left: -2px;
-            text-shadow: -1px 0 #00f0ff;
-            clip: rect(85px, 550px, 140px, 0);
-            animation: glitch-anim 2.5s infinite linear alternate-reverse;
-        }
-        @keyframes glitch-anim {
-            0% { clip: rect(10px, 9999px, 83px, 0); }
-            20% { clip: rect(32px, 9999px, 14px, 0); }
-            40% { clip: rect(88px, 9999px, 65px, 0); }
-            60% { clip: rect(45px, 9999px, 2px, 0); }
-            80% { clip: rect(98px, 9999px, 73px, 0); }
-            100% { clip: rect(2px, 9999px, 55px, 0); }
-        }
-        @keyframes glitch-anim-2 {
-            0% { clip: rect(65px, 9999px, 100px, 0); }
-            20% { clip: rect(3px, 9999px, 45px, 0); }
-            40% { clip: rect(87px, 9999px, 22px, 0); }
-            60% { clip: rect(24px, 9999px, 88px, 0); }
-            80% { clip: rect(54px, 9999px, 12px, 0); }
-            100% { clip: rect(90px, 9999px, 76px, 0); }
+            text-shadow: 2px 0 var(--blue);
+            clip-path: inset(60% 0 20% 0);
+            animation: glitch-2 2.5s infinite linear alternate-reverse;
         }
 
-        /* Scanline Overlay */
+        @keyframes glitch-1 {
+            0%, 100% { clip-path: inset(10% 0 85% 0); }
+            20% { clip-path: inset(35% 0 50% 0); }
+            40% { clip-path: inset(80% 0 5% 0); }
+            60% { clip-path: inset(50% 0 30% 0); }
+            80% { clip-path: inset(5% 0 90% 0); }
+        }
+        @keyframes glitch-2 {
+            0%, 100% { clip-path: inset(65% 0 10% 0); }
+            20% { clip-path: inset(10% 0 75% 0); }
+            40% { clip-path: inset(45% 0 35% 0); }
+            60% { clip-path: inset(90% 0 2% 0); }
+            80% { clip-path: inset(25% 0 55% 0); }
+        }
+
+        /* Scanlines */
         .scanlines {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
-            background-size: 100% 4px;
+            inset: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 0, 0, 0.15) 2px,
+                rgba(0, 0, 0, 0.15) 4px
+            );
             pointer-events: none;
             z-index: 50;
         }
 
-        /* Animations */
+        /* Speaking Ring & Pulse */
         @keyframes pulse-ring-neon {
-            0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 15px rgba(0, 240, 255, 0); }
-            100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(0, 240, 255, 0); }
+            0% { transform: scale(0.92); box-shadow: 0 0 0 0 rgba(0, 240, 255, 0.6); }
+            70% { transform: scale(1); box-shadow: 0 0 0 20px rgba(0, 240, 255, 0); }
+            100% { transform: scale(0.92); box-shadow: 0 0 0 0 rgba(0, 240, 255, 0); }
         }
         .speaking-ring {
-            animation: pulse-ring-neon 2s infinite;
-            border-color: #00f0ff !important;
+            animation: pulse-ring-neon 2.2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+            border-color: var(--blue) !important;
         }
-        
-        .slide-up {
-            transform: translateY(100%);
-            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+
+        /* Slide transitions */
+        .slide-panel {
+            transform: translateY(110%);
+            transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        .slide-up.active {
+        .slide-panel.active {
             transform: translateY(0);
         }
 
-        .typewriter {
-            overflow: hidden;
-            white-space: nowrap;
-            border-right: 2px solid #00ff41;
-            animation: typing 2.5s steps(50, end), blink-caret .75s step-end infinite;
+        /* Fade transitions */
+        .fade-scene {
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
         }
-        @keyframes typing { from { width: 0 } to { width: 100% } }
-        @keyframes blink-caret { from, to { border-color: transparent } 50% { border-color: #00ff41; } }
+        .fade-scene.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
 
-        .fade-in { opacity: 0; transition: opacity 0.5s ease-in; }
-        .fade-in.active { opacity: 1; }
+        /* Typewriter cursor */
+        .typewriter-cursor::after {
+            content: '█';
+            animation: blink 1s step-end infinite;
+            color: var(--neon);
+            margin-left: 2px;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
 
-        /* Custom Scrollbar for Terminal */
-        ::-webkit-scrollbar { width: 6px; }
+        /* Progress bar */
+        .scene-progress {
+            transition: width 0.3s ease;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #0a0a0a; }
-        ::-webkit-scrollbar-thumb { background: #333; }
-        ::-webkit-scrollbar-thumb:hover { background: #00ff41; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--neon); }
+
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .scanlines { display: none; }
+        }
+
+        /* Mobile responsiveness */
+        @media (max-width: 768px) {
+            .mobile-stack { flex-direction: column !important; }
+            .mobile-hide { display: none !important; }
+            .mobile-full { width: 100% !important; height: auto !important; }
+        }
+
+        /* Selection */
+        ::selection {
+            background: var(--neon);
+            color: #000;
+        }
+
+        /* Focus styles for accessibility */
+        button:focus-visible, [tabindex]:focus-visible {
+            outline: 2px solid var(--blue);
+            outline-offset: 2px;
+        }
+
+        /* Canvas visualizer */
+        #viz-canvas {
+            width: 100%;
+            height: 100%;
+        }
     </style>
 </head>
-<body class="h-screen w-screen flex flex-col items-center justify-center overflow-hidden selection:bg-cyber-neon selection:text-black p-4 md:p-8">
+<body class="h-screen w-screen flex flex-col items-center justify-center p-3 md:p-6 lg:p-8 selection:bg-cyber-neon selection:text-black">
 
-    <div id="video-container" class="relative w-full max-w-5xl max-h-[75vh] aspect-video bg-cyber-dark border border-gray-800 shadow-[0_0_50px_rgba(0,255,65,0.1)] rounded-xl overflow-hidden flex flex-col font-sans shrink-0">
+    <!-- Main Container -->
+    <div id="video-container" class="relative w-full max-w-6xl max-h-[80vh] aspect-video bg-cyber-dark border border-gray-800 shadow-[0_0_60px_rgba(0,255,65,0.08)] rounded-xl overflow-hidden flex flex-col font-sans shrink-0 gpu-layer">
         <div class="scanlines"></div>
-        
-        <!-- Minimalist Browser/System Chrome -->
-        <div class="h-12 bg-cyber-black border-b border-gray-800 flex items-center px-6 justify-between shrink-0 z-40">
+
+        <!-- Browser Chrome -->
+        <header class="h-10 md:h-12 bg-cyber-black border-b border-gray-800 flex items-center px-4 md:px-6 justify-between shrink-0 z-40">
             <div class="flex space-x-2">
-                <div class="w-3 h-3 rounded-full bg-cyber-red/50"></div>
-                <div class="w-3 h-3 rounded-full bg-yellow-500/50"></div>
-                <div class="w-3 h-3 rounded-full bg-cyber-neon/50"></div>
+                <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-cyber-red/60" aria-hidden="true"></div>
+                <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-500/60" aria-hidden="true"></div>
+                <div class="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-cyber-neon/60" aria-hidden="true"></div>
             </div>
-            
-            <div class="flex-1 flex justify-center">
-                <div id="address-bar" class="bg-cyber-gray border border-gray-700/50 rounded px-4 py-1.5 text-xs text-gray-400 font-mono tracking-widest transition-all duration-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]">
-                    <i class="fas fa-lock text-cyber-neon/70 mr-2"></i>
-                    SMIP_CORE // localhost:3000
+
+            <div class="flex-1 flex justify-center px-4">
+                <div id="address-bar" class="bg-cyber-gray border border-gray-700/50 rounded px-3 py-1 text-[10px] md:text-xs text-gray-400 font-mono tracking-widest transition-all duration-300 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)] truncate max-w-md">
+                    <i class="fas fa-lock text-cyber-neon/70 mr-1.5"></i>
+                    <span id="address-text">SMIP_CORE // localhost:3000</span>
                 </div>
             </div>
 
-            <div class="flex items-center space-x-4 text-xs font-mono text-gray-500">
-                <span id="sys-time">SYS.TIME</span>
-                <div id="wifi-icon" class="text-cyber-neon transition-colors duration-300"><i class="fas fa-network-wired"></i></div>
+            <div class="flex items-center space-x-3 md:space-x-4 text-[10px] md:text-xs font-mono text-gray-500">
+                <span id="sys-time" aria-live="off">00:00:00</span>
+                <div id="wifi-icon" class="text-cyber-neon transition-colors duration-300 flex items-center gap-1">
+                    <i class="fas fa-network-wired" aria-hidden="true"></i>
+                    <span id="net-status" class="hidden md:inline text-[10px]">ONLINE</span>
+                </div>
             </div>
-        </div>
+        </header>
 
-        <div class="relative flex-1 overflow-hidden bg-cyber-dark">
-            
+        <!-- Scene Area -->
+        <main class="relative flex-1 overflow-hidden bg-cyber-dark" role="region" aria-label="Presentation stage">
+
             <!-- Scene 1 & 3: SMIP UI -->
-            <div id="scene-app" class="absolute inset-0 flex fade-in active">
-                
+            <div id="scene-app" class="absolute inset-0 flex fade-scene active gpu-layer mobile-stack">
                 <!-- Sidebar -->
-                <div class="w-72 bg-cyber-black border-r border-gray-800 p-6 flex flex-col z-10">
-                    <h2 class="text-2xl font-black text-white tracking-tighter mb-8 glitch-text uppercase" data-text="SMIP_NODE">SMIP_NODE</h2>
-                    
+                <aside class="w-full md:w-72 bg-cyber-black border-r border-gray-800 p-4 md:p-6 flex flex-col z-10 shrink-0">
+                    <h2 class="text-xl md:text-2xl font-black text-white tracking-tighter mb-6 glitch-text uppercase" data-text="SMIP_NODE">SMIP_NODE</h2>
+
                     <div class="text-[10px] font-mono text-gray-500 mb-2 uppercase tracking-widest">Audit Trail / Logs</div>
-                    <ul class="space-y-1 font-mono text-xs">
-                        <li class="bg-cyber-gray border-l-2 border-cyber-neon text-cyber-neon px-3 py-2 cursor-pointer shadow-[0_0_10px_rgba(0,255,65,0.05)]">
-                            > AUDIT_01: OmniCorp Probe
-                        </li>
-                        <li class="px-3 py-2 text-gray-500 hover:text-gray-300 cursor-pointer transition-colors">
-                            > AUDIT_02: Ghost Update
-                        </li>
-                        <li class="px-3 py-2 text-gray-500 hover:text-gray-300 cursor-pointer transition-colors">
-                            > AUDIT_03: Kyoto Gradients
-                        </li>
-                    </ul>
+                    <nav>
+                        <ul class="space-y-1 font-mono text-xs" role="list">
+                            <li class="bg-cyber-gray border-l-2 border-cyber-neon text-cyber-neon px-3 py-2 shadow-[0_0_10px_rgba(0,255,65,0.05)]">
+                                <span aria-hidden="true">&gt;</span> AUDIT_01: OmniCorp Probe
+                            </li>
+                            <li class="px-3 py-2 text-gray-500 hover:text-gray-300 cursor-pointer transition-colors">
+                                <span aria-hidden="true">&gt;</span> AUDIT_02: Ghost Update
+                            </li>
+                            <li class="px-3 py-2 text-gray-500 hover:text-gray-300 cursor-pointer transition-colors">
+                                <span aria-hidden="true">&gt;</span> AUDIT_03: Kyoto Gradients
+                            </li>
+                        </ul>
+                    </nav>
 
                     <div class="mt-auto border border-gray-800 p-3 bg-[#0a0a0a] rounded text-[10px] font-mono space-y-2">
-                        <div class="flex justify-between text-gray-500 mb-1"><span>BFT CONSENSUS:</span><span class="text-cyber-neon">55.5%</span></div>
-                        <div class="flex justify-between text-gray-500"><span>PQC SESSION:</span><span class="text-white">X25519+ML-KEM</span></div>
-                        <div class="flex justify-between text-gray-500 pt-2 border-t border-gray-800"><span>STATUS:</span><span class="text-cyber-neon animate-pulse">SOVEREIGN</span></div>
+                        <div class="flex justify-between text-gray-500 mb-1">
+                            <span>BFT CONSENSUS:</span><span class="text-cyber-neon">55.5%</span>
+                        </div>
+                        <div class="flex justify-between text-gray-500">
+                            <span>PQC SESSION:</span><span class="text-white">X25519+ML-KEM</span>
+                        </div>
+                        <div class="flex justify-between text-gray-500 pt-2 border-t border-gray-800">
+                            <span>STATUS:</span><span class="text-cyber-neon animate-pulse">SOVEREIGN</span>
+                        </div>
                     </div>
-                </div>
+                </aside>
 
-                <!-- Main Terminal/Story Area -->
-                <div class="flex-1 flex flex-col relative bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-opacity-5">
-                    
-                    <!-- Top Info Bar -->
-                    <div class="h-10 border-b border-gray-800 flex items-center px-6 text-xs font-mono text-gray-500 justify-between bg-cyber-black/80 backdrop-blur">
+                <!-- Main Content -->
+                <div class="flex-1 flex flex-col relative min-w-0">
+                    <!-- Top Bar -->
+                    <div class="h-8 md:h-10 border-b border-gray-800 flex items-center px-4 md:px-6 text-[10px] md:text-xs font-mono text-gray-500 justify-between bg-cyber-black/80 backdrop-blur">
                         <span>// ZERO-PROOF VERIFICATION ACTIVE</span>
                         <span class="text-cyber-blue">WASM_ENGINE: RUNNING</span>
                     </div>
 
                     <!-- Story Content -->
-                    <div class="flex-1 overflow-y-auto p-8 space-y-6 font-mono text-sm" id="story-container">
+                    <div class="flex-1 overflow-y-auto p-4 md:p-8 space-y-4 md:space-y-6 font-mono text-xs md:text-sm" id="story-container">
                         <div class="text-gray-400">
                             <span class="text-cyber-red font-bold">03:47:12 [SYS]</span> Baseline memory allocation complete. eBPF steering active.
                         </div>
-                        <p class="text-gray-300 leading-relaxed border-l border-gray-700 pl-4">
+                        <p class="text-gray-300 leading-relaxed border-l border-gray-700 pl-3 md:pl-4">
                             The basement air tasted of ozone and old concrete. Elias watched the terminal screen glow in the dark. The memory footprint had grown by exactly 128 kilobytes. It wasn't an accident. It was a signature. A message written in memory allocation that said: I was here. OmniCorp was inside the code.
                         </p>
-                        
-                        <div id="generated-container" class="hidden">
-                            <div class="text-cyber-neon mb-2">
-                                <span class="animate-pulse">></span> INFERENCING LOCAL NEURAL NET...
+
+                        <div id="generated-container" class="hidden gpu-layer">
+                            <div class="text-cyber-neon mb-2 font-mono text-xs md:text-sm">
+                                <span class="animate-pulse" aria-hidden="true">&gt;</span> INFERENCING LOCAL NEURAL NET...
                             </div>
-                            <p id="generated-text" class="text-cyber-blue leading-relaxed border-l-2 border-cyber-blue pl-4 bg-cyber-blue/5 p-3"></p>
+                            <div id="generated-text-wrapper" class="border-l-2 border-cyber-blue bg-cyber-blue/5 p-3">
+                                <p id="generated-text" class="text-cyber-blue leading-relaxed typewriter-cursor"></p>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Input Area -->
-                    <div class="p-6 bg-cyber-black/90 border-t border-gray-800 backdrop-blur">
-                        <div class="flex items-center border border-gray-700 bg-cyber-dark px-4 py-3 focus-within:border-cyber-blue transition-colors shadow-inner">
-                            <span class="text-cyber-neon mr-3">></span>
-                            <span id="prompt-input" class="text-gray-500 font-mono text-sm w-full outline-none bg-transparent">Awaiting node operator input...</span>
-                            <i class="fas fa-terminal text-gray-600"></i>
+                    <div class="p-3 md:p-6 bg-cyber-black/90 border-t border-gray-800 backdrop-blur">
+                        <div class="flex items-center border border-gray-700 bg-cyber-dark px-3 md:px-4 py-2.5 md:py-3 focus-within:border-cyber-blue transition-colors shadow-inner">
+                            <span class="text-cyber-neon mr-2 md:mr-3" aria-hidden="true">&gt;</span>
+                            <span id="prompt-input" class="text-gray-500 font-mono text-xs md:text-sm w-full outline-none bg-transparent truncate">Awaiting node operator input...</span>
+                            <i class="fas fa-terminal text-gray-600 ml-2" aria-hidden="true"></i>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="scene-devtools" class="absolute bottom-0 left-0 right-0 h-1/2 bg-[#1e1e1e] border-t border-cyber-blue shadow-[0_-10px_30px_rgba(0,240,255,0.1)] flex flex-col slide-up z-20 font-mono">
-                <div class="h-10 bg-[#252526] border-b border-[#333] flex items-center px-4 text-xs text-gray-400 justify-between">
-                    <div class="flex space-x-6">
+            <!-- Scene 2: DevTools -->
+            <div id="scene-devtools" class="absolute bottom-0 left-0 right-0 h-[45%] md:h-1/2 bg-[#1e1e1e] border-t border-cyber-blue shadow-[0_-10px_30px_rgba(0,240,255,0.1)] flex flex-col slide-panel z-20 font-mono gpu-layer" aria-hidden="true">
+                <div class="h-8 md:h-10 bg-[#252526] border-b border-[#333] flex items-center px-3 md:px-4 text-xs text-gray-400 justify-between">
+                    <div class="flex space-x-4 md:space-x-6">
                         <span class="cursor-pointer hover:text-white">Console</span>
                         <span class="text-cyber-blue border-b border-cyber-blue pb-1">Network</span>
                         <span class="cursor-pointer hover:text-white">Performance</span>
                     </div>
-                    <i class="fas fa-times text-gray-500 hover:text-white cursor-pointer" onclick="document.getElementById('scene-devtools').classList.remove('active')"></i>
+                    <button class="text-gray-500 hover:text-white cursor-pointer p-1" onclick="SMIP.hideDevTools()" aria-label="Close developer tools">
+                        <i class="fas fa-times" aria-hidden="true"></i>
+                    </button>
                 </div>
-                
+
                 <div class="p-2 border-b border-[#333] flex items-center bg-[#1e1e1e]">
                     <div class="flex items-center bg-[#2d2d2d] rounded px-2 py-1 border border-[#3c3c3c]">
-                        <i class="fas fa-filter text-gray-500 text-[10px] mr-2"></i>
+                        <i class="fas fa-filter text-gray-500 text-[10px] mr-2" aria-hidden="true"></i>
                         <span class="text-[#d4d4d4] text-xs">wasm</span>
                     </div>
                 </div>
@@ -249,301 +344,664 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="text-[#cccccc] bg-[#2d2d2d] sticky top-0">
                             <tr>
-                                <th class="py-1 px-3 font-normal border-r border-[#3c3c3c]">Name</th>
-                                <th class="py-1 px-3 font-normal border-r border-[#3c3c3c]">Status</th>
-                                <th class="py-1 px-3 font-normal border-r border-[#3c3c3c]">Type</th>
-                                <th class="py-1 px-3 font-normal border-r border-[#3c3c3c]">Time</th>
-                                <th class="py-1 px-3 font-normal">Size</th>
+                                <th class="py-1 px-2 md:px-3 font-normal border-r border-[#3c3c3c]">Name</th>
+                                <th class="py-1 px-2 md:px-3 font-normal border-r border-[#3c3c3c]">Status</th>
+                                <th class="py-1 px-2 md:px-3 font-normal border-r border-[#3c3c3c]">Type</th>
+                                <th class="py-1 px-2 md:px-3 font-normal border-r border-[#3c3c3c]">Time</th>
+                                <th class="py-1 px-2 md:px-3 font-normal">Size</th>
                             </tr>
                         </thead>
                         <tbody id="network-tbody">
-                            <tr id="wasm-network-row" class="hover:bg-[#2a2d2e] border-b border-[#333] hidden">
-                                <td class="py-1 px-3 text-[#4ec9b0] flex items-center"><i class="fas fa-file-code text-gray-500 mr-2 text-[10px]"></i>smip_core_narrative.wasm</td>
-                                <td class="py-1 px-3 text-[#89d185]">200</td>
-                                <td class="py-1 px-3 text-[#cccccc]">wasm</td>
-                                <td class="py-1 px-3 text-[#cccccc]">14ms</td>
-                                <td class="py-1 px-3 text-[#cccccc]">4.2 MB</td>
+                            <tr id="wasm-network-row" class="hover:bg-[#2a2d2e] border-b border-[#333] hidden gpu-layer">
+                                <td class="py-1 px-2 md:px-3 text-[#4ec9b0] flex items-center">
+                                    <i class="fas fa-file-code text-gray-500 mr-2 text-[10px]" aria-hidden="true"></i>smip_core_narrative.wasm
+                                </td>
+                                <td class="py-1 px-2 md:px-3 text-[#89d185]">200</td>
+                                <td class="py-1 px-2 md:px-3 text-[#cccccc]">wasm</td>
+                                <td class="py-1 px-2 md:px-3 text-[#cccccc]">14ms</td>
+                                <td class="py-1 px-2 md:px-3 text-[#cccccc]">4.2 MB</td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
             </div>
 
-            <div id="scene-github" class="absolute inset-0 bg-[#0d1117] fade-in flex flex-col hidden z-30 font-sans">
-                <div class="h-16 bg-[#161b22] flex items-center px-6 text-white space-x-4 border-b border-gray-700 shadow-md">
-                    <i class="fab fa-github text-3xl"></i>
-                    <div class="flex flex-col">
-                        <span class="text-sm font-semibold text-cyber-blue">rwilliamspbg-ops / <span class="font-bold text-white">SMP_Novels</span></span>
+            <!-- Scene 4: GitHub -->
+            <div id="scene-github" class="absolute inset-0 bg-[#0d1117] fade-scene flex flex-col hidden z-30 font-sans gpu-layer" aria-hidden="true">
+                <div class="h-14 md:h-16 bg-[#161b22] flex items-center px-4 md:px-6 text-white space-x-3 md:space-x-4 border-b border-gray-700 shadow-md">
+                    <i class="fab fa-github text-2xl md:text-3xl" aria-hidden="true"></i>
+                    <div class="flex flex-col min-w-0">
+                        <span class="text-xs md:text-sm font-semibold text-cyber-blue truncate">rwilliamspbg-ops / <span class="font-bold text-white">SMP_Novels</span></span>
                         <span class="text-[10px] text-gray-400 border border-gray-600 rounded px-1 w-max mt-0.5">Public</span>
                     </div>
                 </div>
-                
-                <div class="p-8 max-w-5xl mx-auto w-full">
-                    <div class="flex justify-between items-center mb-4">
+
+                <div class="p-4 md:p-8 max-w-5xl mx-auto w-full overflow-y-auto">
+                    <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-2">
                         <div class="flex space-x-2">
-                            <div class="bg-[#21262d] border border-[#30363d] rounded-md px-3 py-1 text-sm text-[#c9d1d9] font-medium hover:bg-[#30363d] cursor-pointer">
-                                <i class="fas fa-code-branch mr-2"></i>main
+                            <div class="bg-[#21262d] border border-[#30363d] rounded-md px-3 py-1 text-xs md:text-sm text-[#c9d1d9] font-medium hover:bg-[#30363d] cursor-pointer">
+                                <i class="fas fa-code-branch mr-2" aria-hidden="true"></i>main
                             </div>
                         </div>
-                        <div class="bg-green-600 text-white rounded-md px-4 py-1.5 text-sm font-semibold hover:bg-green-700 cursor-pointer">
-                            <i class="fas fa-code mr-2"></i>Code
+                        <div class="bg-green-600 text-white rounded-md px-3 md:px-4 py-1 md:py-1.5 text-xs md:text-sm font-semibold hover:bg-green-700 cursor-pointer">
+                            <i class="fas fa-code mr-2" aria-hidden="true"></i>Code
                         </div>
                     </div>
 
                     <div class="border border-[#30363d] rounded-md overflow-hidden bg-[#0d1117]">
-                        <div class="bg-[#161b22] p-3 text-sm text-[#8b949e] border-b border-[#30363d] flex justify-between items-center">
-                            <div class="flex items-center">
-                                <div class="w-6 h-6 rounded-full bg-gray-600 mr-3 flex items-center justify-center text-white text-xs"><i class="fas fa-user"></i></div>
-                                <span class="font-semibold text-[#c9d1d9] mr-2">rwilliamspbg-ops</span> 
-                                <span>Deployed Zero-Copy Memory allocation</span>
+                        <div class="bg-[#161b22] p-2 md:p-3 text-xs md:text-sm text-[#8b949e] border-b border-[#30363d] flex flex-col md:flex-row justify-between items-start md:items-center gap-1">
+                            <div class="flex items-center min-w-0">
+                                <div class="w-5 h-5 md:w-6 md:h-6 rounded-full bg-gray-600 mr-2 md:mr-3 flex items-center justify-center text-white text-[10px] md:text-xs shrink-0">
+                                    <i class="fas fa-user" aria-hidden="true"></i>
+                                </div>
+                                <span class="font-semibold text-[#c9d1d9] mr-2">rwilliamspbg-ops</span>
+                                <span class="truncate">Deployed Zero-Copy Memory allocation</span>
                             </div>
-                            <span>1 hour ago</span>
+                            <span class="text-[10px] md:text-xs shrink-0">1 hour ago</span>
                         </div>
-                        
+
                         <div>
-                            <div class="flex justify-between p-3 border-b border-[#30363d] text-sm hover:bg-[#161b22] cursor-pointer">
-                                <div class="flex items-center text-[#c9d1d9]"><i class="fas fa-folder text-[#58a6ff] w-5"></i>src/frontend</div>
-                                <div class="text-[#8b949e]">Update UI bindings for PBG Charter</div>
-                                <div class="text-[#8b949e]">2 hours ago</div>
+                            <div class="flex flex-col md:flex-row justify-between p-2 md:p-3 border-b border-[#30363d] text-xs md:text-sm hover:bg-[#161b22] cursor-pointer gap-1">
+                                <div class="flex items-center text-[#c9d1d9] min-w-0">
+                                    <i class="fas fa-folder text-[#58a6ff] w-5 shrink-0" aria-hidden="true"></i>
+                                    <span class="truncate">src/frontend</span>
+                                </div>
+                                <div class="text-[#8b949e] truncate">Update UI bindings for PBG Charter</div>
+                                <div class="text-[#8b949e] shrink-0">2 hours ago</div>
                             </div>
-                            <div class="flex justify-between p-3 border-b border-[#30363d] text-sm hover:bg-[#161b22] cursor-pointer bg-[#161b22]/50">
-                                <div class="flex items-center text-[#c9d1d9]"><i class="fas fa-folder text-[#58a6ff] w-5"></i>src/wasm_core</div>
-                                <div class="text-[#8b949e]">Optimize memory allocation for model inference (Rowhammer fix)</div>
-                                <div class="text-[#8b949e]">1 hour ago</div>
+                            <div class="flex flex-col md:flex-row justify-between p-2 md:p-3 border-b border-[#30363d] text-xs md:text-sm hover:bg-[#161b22] cursor-pointer bg-[#161b22]/50 gap-1">
+                                <div class="flex items-center text-[#c9d1d9] min-w-0">
+                                    <i class="fas fa-folder text-[#58a6ff] w-5 shrink-0" aria-hidden="true"></i>
+                                    <span class="truncate">src/wasm_core</span>
+                                </div>
+                                <div class="text-[#8b949e] truncate">Optimize memory allocation for model inference (Rowhammer fix)</div>
+                                <div class="text-[#8b949e] shrink-0">1 hour ago</div>
                             </div>
-                            <div class="flex justify-between p-3 text-sm hover:bg-[#161b22] cursor-pointer">
-                                <div class="flex items-center text-[#c9d1d9]"><i class="fas fa-file-alt text-[#8b949e] w-5"></i>README.md</div>
-                                <div class="text-[#8b949e]">Initial commit: The hum begins</div>
-                                <div class="text-[#8b949e]">5 hours ago</div>
+                            <div class="flex flex-col md:flex-row justify-between p-2 md:p-3 text-xs md:text-sm hover:bg-[#161b22] cursor-pointer gap-1">
+                                <div class="flex items-center text-[#c9d1d9] min-w-0">
+                                    <i class="fas fa-file-alt text-[#8b949e] w-5 shrink-0" aria-hidden="true"></i>
+                                    <span class="truncate">README.md</span>
+                                </div>
+                                <div class="text-[#8b949e] truncate">Initial commit: The hum begins</div>
+                                <div class="text-[#8b949e] shrink-0">5 hours ago</div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </main>
+
+        <!-- Speaker Bubble with Visualizer -->
+        <div id="speaker-bubble" class="absolute bottom-4 md:bottom-6 left-4 md:left-6 w-16 h-16 md:w-24 md:h-24 rounded-full border-2 border-gray-600 bg-cyber-black overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.8)] z-50 transition-all duration-500 hidden items-center justify-center gpu-layer" aria-label="Audio visualizer">
+            <canvas id="viz-canvas" width="96" height="96" aria-hidden="true"></canvas>
+            <div id="speaker-icon" class="absolute inset-0 flex items-center justify-center">
+                <i class="fas fa-code text-2xl md:text-4xl text-gray-400 drop-shadow-md" aria-hidden="true"></i>
+            </div>
         </div>
 
-        
-        <!-- Speaker Bubble (Hacker Style) -->
-        <div id="speaker-bubble" class="absolute bottom-6 left-6 w-24 h-24 rounded-full border-2 border-gray-600 bg-cyber-black overflow-hidden shadow-[0_0_20px_rgba(0,0,0,0.8)] z-50 transition-all duration-500 hidden items-center justify-center">
-            <div class="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-20"></div>
-            <i class="fas fa-code text-4xl text-gray-400 relative z-10 drop-shadow-md"></i>
+        <!-- Progress Bar -->
+        <div id="progress-container" class="absolute top-12 md:top-14 left-0 right-0 h-0.5 bg-gray-800 z-40 hidden">
+            <div id="progress-bar" class="h-full bg-cyber-neon scene-progress shadow-[0_0_10px_rgba(0,255,65,0.5)]" style="width: 0%"></div>
         </div>
 
         <!-- Play Overlay -->
         <div id="play-overlay" class="absolute inset-0 bg-cyber-black/95 flex flex-col items-center justify-center z-[100] backdrop-blur-sm">
-            <div class="glitch-text text-4xl font-black text-white mb-6 uppercase tracking-widest" data-text="THE COGNOSCENT ECHO">THE COGNOSCENT ECHO</div>
-            <button onclick="startAnimatic()" class="group relative px-8 py-3 bg-transparent text-cyber-neon font-mono text-lg font-bold uppercase tracking-widest overflow-hidden border border-cyber-neon hover:bg-cyber-neon hover:text-black transition-all duration-300">
-                <span class="relative z-10 flex items-center"><i class="fas fa-play mr-3"></i> Initialize Protocol</span>
-                <div class="absolute inset-0 bg-cyber-neon opacity-0 group-hover:opacity-10 transition-opacity"></div>
+            <div class="glitch-text text-2xl md:text-4xl font-black text-white mb-4 md:mb-6 uppercase tracking-widest" data-text="THE COGNOSCENT ECHO">THE COGNOSCENT ECHO</div>
+
+            <div class="flex flex-col items-center gap-4">
+                <button id="start-btn" class="group relative px-6 md:px-8 py-2.5 md:py-3 bg-transparent text-cyber-neon font-mono text-sm md:text-lg font-bold uppercase tracking-widest overflow-hidden border border-cyber-neon hover:bg-cyber-neon hover:text-black transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyber-blue focus-visible:ring-offset-2 focus-visible:ring-offset-black">
+                    <span class="relative z-10 flex items-center">
+                        <i class="fas fa-play mr-2 md:mr-3" aria-hidden="true"></i> Initialize Protocol
+                    </span>
+                    <div class="absolute inset-0 bg-cyber-neon opacity-0 group-hover:opacity-10 transition-opacity" aria-hidden="true"></div>
+                </button>
+
+                <div class="flex gap-3 text-[10px] md:text-xs text-gray-500 font-mono uppercase tracking-widest">
+                    <span><kbd class="border border-gray-700 rounded px-1 text-gray-400">Space</kbd> to start</span>
+                    <span><kbd class="border border-gray-700 rounded px-1 text-gray-400">→</kbd> to skip</span>
+                </div>
+            </div>
+
+            <p class="text-gray-500 font-mono text-[10px] md:text-xs mt-4 md:mt-6 uppercase tracking-widest">Audio output required to hear the hum</p>
+
+            <div id="voice-status" class="mt-2 text-[10px] font-mono text-gray-600">Loading neural voice patterns...</div>
+        </div>
+
+        <!-- Skip/Controls Overlay (shown during playback) -->
+        <div id="controls-overlay" class="absolute top-14 right-4 z-[90] hidden flex gap-2">
+            <button id="skip-btn" class="bg-black/60 border border-gray-700 text-gray-400 hover:text-white px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider backdrop-blur transition-colors">
+                Skip <i class="fas fa-forward ml-1" aria-hidden="true"></i>
             </button>
-            <p class="text-gray-500 font-mono text-xs mt-6 uppercase tracking-widest">Audio output required to hear the hum</p>
+            <button id="replay-btn" class="bg-black/60 border border-gray-700 text-gray-400 hover:text-white px-2 py-1 rounded text-[10px] font-mono uppercase tracking-wider backdrop-blur transition-colors">
+                Replay <i class="fas fa-redo ml-1" aria-hidden="true"></i>
+            </button>
         </div>
     </div>
 
-    <!-- Captions Area (Moved OUTSIDE video container) -->
-    <div id="captions-container" class="mt-8 w-full max-w-4xl text-center z-50 hidden font-mono min-h-[80px] px-4 shrink-0 flex items-center justify-center">
-        <p id="captions-text" class="text-cyber-neon/90 text-lg md:text-xl font-medium tracking-wide transition-opacity duration-300 drop-shadow-[0_0_8px_rgba(0,255,65,0.5)]">
+    <!-- Captions -->
+    <div id="captions-container" class="mt-4 md:mt-6 w-full max-w-4xl text-center z-50 hidden font-mono min-h-[60px] md:min-h-[80px] px-4 shrink-0 flex items-center justify-center">
+        <p id="captions-text" class="text-cyber-neon/90 text-sm md:text-lg lg:text-xl font-medium tracking-wide transition-opacity duration-300 drop-shadow-[0_0_8px_rgba(0,255,65,0.5)] leading-relaxed">
             > System initializing...
         </p>
     </div>
 
     <script>
-        // Set System Time
-        setInterval(() => {
-            const now = new Date();
-            document.getElementById('sys-time').innerText = now.toTimeString().split(' ')[0];
-        }, 1000);
+        /**
+         * SMIP Presentation Controller
+         * Manages scenes, speech synthesis, visualizer, and state.
+         */
+        const SMIP = (function() {
+            'use strict';
 
-        // Storyboard Timeline Data
-        const script = [
-            {
-                id: 'intro',
-                narration: "The first time Elias Vance heard the hum, it was the sound of sovereignty. What you are looking at isn't talking to OmniCorp's centralized servers. We are running the Sovereign Mohawk Protocol entirely inside the browser. No API keys. No data leaks. Complete operational security using a Web Assembly sandbox. Let me demonstrate.",
-                action: () => {
-                    const bubble = document.getElementById('speaker-bubble');
-                    bubble.classList.remove('hidden');
-                    bubble.classList.add('flex', 'speaking-ring');
-                    document.getElementById('captions-container').classList.remove('hidden');
-                }
-            },
-            {
-                id: 'wasm-demo',
-                narration: "The architecture relies on this WASM sandbox. Monitoring the network traffic, you can see the compiled WebAssembly binary loading locally. This isolates the consensus mechanism, protecting the main thread from OmniCorp's memory leaks and ghost updates. The math executes in a secure environment.",
-                action: () => {
-                    document.getElementById('scene-devtools').classList.add('active');
-                    setTimeout(() => {
-                        const row = document.getElementById('wasm-network-row');
-                        row.classList.remove('hidden');
-                        row.classList.add('fade-in', 'active');
-                    }, 3000); 
-                }
-            },
-            {
-                id: 'ai-action',
-                narration: "Let's test the local inference. I'll input a command to verify the Kyoto node gradients. Watch the response time. Because the neural net runs locally via Web Assembly, latency is practically zero. To prove the system is sovereign, I am severing the connection now. The connection is dead, yet the engine continues to generate narrative vectors flawlessly. One hundred percent client-side.",
-                action: () => {
-                    document.getElementById('scene-devtools').classList.remove('active');
-                    
-                    // Typing prompt
-                    setTimeout(() => {
-                        document.getElementById('prompt-input').innerHTML = '<span class="text-white">Verify Kyoto node gradients; isolate memory leak.</span>';
-                    }, 3000);
-
-                    // AI Generation
-                    setTimeout(() => {
-                        document.getElementById('prompt-input').innerHTML = '<span class="text-gray-500">Awaiting node operator input...</span>';
-                        const genContainer = document.getElementById('generated-container');
-                        const genText = document.getElementById('generated-text');
-                        genContainer.classList.remove('hidden');
-                        genText.innerText = "Zero-Proof Verification: Complete. Byzantine Consensus reached at f=44.3%. Multi-Krum filter passed. The hum of the servers settled into a steady rhythm. The protocol was safe.";
-                        genText.classList.add('typewriter');
-                    }, 8000);
-
-                    // Offline mode
-                    setTimeout(() => {
-                        const wifi = document.getElementById('wifi-icon');
-                        wifi.classList.replace('text-cyber-neon', 'text-cyber-red');
-                        wifi.innerHTML = '<i class="fas fa-network-wired line-through"></i><span class="text-[10px] ml-1">OFFLINE</span>';
-                        
-                        document.getElementById('address-bar').classList.replace('bg-cyber-gray', 'bg-cyber-red/20');
-                        document.getElementById('address-bar').classList.replace('border-gray-700/50', 'border-cyber-red/50');
-                    }, 17000);
-                }
-            },
-            {
-                id: 'repo-tour',
-                narration: "The source code is fully transparent and available in the repository. We've bridged high-performance Web Assembly with the P. B. G. Charter. You can review the zero-copy memory allocation protocols and see how we protect against row-hammer attacks within strict browser constraints.",
-                action: () => {
-                    document.getElementById('address-bar').innerHTML = '<i class="fab fa-github text-white mr-2"></i>github.com/rwilliamspbg-ops/SMP_Novels';
-                    document.getElementById('address-bar').classList.replace('bg-cyber-red/20', 'bg-[#161b22]');
-                    document.getElementById('address-bar').classList.replace('border-cyber-red/50', 'border-[#30363d]');
-                    
-                    const githubScene = document.getElementById('scene-github');
-                    githubScene.classList.remove('hidden');
-                    void githubScene.offsetWidth; 
-                    githubScene.classList.add('active');
-                }
-            },
-            {
-                id: 'conclusion',
-                narration: "Math doesn't break. People do. Client-side AI is the only way to ensure data sovereignty against corporate capture. Access the repository. Listen to the hum yourself. I am not for sale.",
-                action: () => {
-                    document.getElementById('address-bar').innerHTML = '<i class="fas fa-lock text-cyber-neon/70 mr-2"></i>SMIP_CORE // localhost:3000';
-                    document.getElementById('address-bar').classList.replace('bg-[#161b22]', 'bg-cyber-gray');
-                    document.getElementById('address-bar').classList.replace('border-[#30363d]', 'border-gray-700/50');
-
-                    const githubScene = document.getElementById('scene-github');
-                    githubScene.classList.remove('active');
-                    setTimeout(() => githubScene.classList.add('hidden'), 500);
-                    
-                    const bubble = document.getElementById('speaker-bubble');
-                    bubble.style.transform = 'scale(1.1)';
-                    bubble.style.borderColor = '#ff003c'; // turn red at end
-                }
-            }
-        ];
-
-        let synth = window.speechSynthesis;
-        let timeouts = [];
-        let resumeIntervals = [];
-
-        function startAnimatic() {
-            // Cleanup
-            synth.cancel();
-            timeouts.forEach(clearTimeout);
-            resumeIntervals.forEach(clearInterval);
-            
-            document.getElementById('play-overlay').style.display = 'none';
-            
-            // Reset UI State
-            document.getElementById('scene-devtools').classList.remove('active');
-            document.getElementById('scene-github').classList.add('hidden');
-            document.getElementById('scene-github').classList.remove('active');
-            document.getElementById('wasm-network-row').classList.add('hidden');
-            document.getElementById('generated-container').classList.add('hidden');
-            document.getElementById('generated-text').classList.remove('typewriter');
-            document.getElementById('prompt-input').innerHTML = 'Awaiting node operator input...';
-            
-            const wifi = document.getElementById('wifi-icon');
-            wifi.classList.replace('text-cyber-red', 'text-cyber-neon');
-            wifi.innerHTML = '<i class="fas fa-network-wired"></i>';
-            
-            const bubble = document.getElementById('speaker-bubble');
-            bubble.style.transform = '';
-            bubble.style.borderColor = '';
-            bubble.classList.remove('speaking-ring');
-
-            playScene(0);
-        }
-
-        function playScene(index) {
-            if (index >= script.length) {
-                // End
-                const bubble = document.getElementById('speaker-bubble');
-                bubble.classList.remove('speaking-ring');
-                document.getElementById('captions-text').innerText = "> The system hummed. And it felt right.";
-                setTimeout(() => {
-                    document.getElementById('play-overlay').style.display = 'flex';
-                }, 3000);
-                return;
-            }
-
-            const scene = script[index];
-            if (scene.action) scene.action();
-
-            document.getElementById('captions-text').innerText = `> ${scene.narration}`;
-
-            // Speech setup
-            let utterance = new SpeechSynthesisUtterance(scene.narration);
-            utterance.rate = 1.0; 
-            utterance.pitch = 0.8; // Lower pitch for thriller/exhausted vibe
-            
-            let voices = synth.getVoices();
-            // Try to find a slightly robotic or deeper voice if possible
-            let preferredVoice = voices.find(v => v.name.includes('Google UK English Male')) || 
-                                 voices.find(v => v.name.includes('Male')) || 
-                                 voices.find(v => v.lang === 'en-US') || 
-                                 voices[0];
-            if (preferredVoice) utterance.voice = preferredVoice;
-
-            let hasEnded = false;
-
-            // Wait for natural completion before advancing to the next scene
-            utterance.onend = () => {
-                if (hasEnded) return;
-                hasEnded = true;
-                playScene(index + 1);
+            // --- Configuration ---
+            const CONFIG = {
+                speechRate: 1.0,
+                speechPitch: 0.85,
+                fallbackTimeout: 45000,
+                chromeResumeInterval: 14000,
+                typewriterSpeed: 30
             };
 
-            // Fix for Chrome 15-second speech synthesis cancellation bug
-            let resumeInterval = setInterval(() => {
-                if (synth.speaking && !synth.paused) {
-                    synth.pause();
-                    synth.resume();
-                }
-            }, 10000);
-            resumeIntervals.push(resumeInterval);
+            // --- State ---
+            let synth = window.speechSynthesis;
+            let voices = [];
+            let currentScene = -1;
+            let isPlaying = false;
+            let timeouts = [];
+            let intervals = [];
+            let typewriterInterval = null;
+            let visualizerId = null;
+            let utterance = null;
 
-            // Generous fallback in case the API completely hangs
-            let fallbackTimeout = setTimeout(() => {
-                if (!hasEnded) {
+            // --- DOM Cache ---
+            const DOM = {
+                sysTime: document.getElementById('sys-time'),
+                wifiIcon: document.getElementById('wifi-icon'),
+                netStatus: document.getElementById('net-status'),
+                addressBar: document.getElementById('address-bar'),
+                addressText: document.getElementById('address-text'),
+                speakerBubble: document.getElementById('speaker-bubble'),
+                speakerIcon: document.getElementById('speaker-icon'),
+                vizCanvas: document.getElementById('viz-canvas'),
+                captionsContainer: document.getElementById('captions-container'),
+                captionsText: document.getElementById('captions-text'),
+                playOverlay: document.getElementById('play-overlay'),
+                startBtn: document.getElementById('start-btn'),
+                voiceStatus: document.getElementById('voice-status'),
+                progressContainer: document.getElementById('progress-container'),
+                progressBar: document.getElementById('progress-bar'),
+                controlsOverlay: document.getElementById('controls-overlay'),
+                skipBtn: document.getElementById('skip-btn'),
+                replayBtn: document.getElementById('replay-btn'),
+                sceneApp: document.getElementById('scene-app'),
+                sceneDevtools: document.getElementById('scene-devtools'),
+                sceneGithub: document.getElementById('scene-github'),
+                wasmRow: document.getElementById('wasm-network-row'),
+                genContainer: document.getElementById('generated-container'),
+                genText: document.getElementById('generated-text'),
+                promptInput: document.getElementById('prompt-input')
+            };
+
+            // --- Script Data ---
+            const SCRIPT = [
+                {
+                    id: 'intro',
+                    narration: "The first time Elias Vance heard the hum, it was the sound of sovereignty. What you are looking at isn't talking to OmniCorp's centralized servers. We are running the Sovereign Mohawk Protocol entirely inside the browser. No API keys. No data leaks. Complete operational security using a Web Assembly sandbox. Let me demonstrate.",
+                    duration: 17000,
+                    action: () => {
+                        showSpeaker(true);
+                        showCaptions(true);
+                    }
+                },
+                {
+                    id: 'wasm-demo',
+                    narration: "The architecture relies on this WASM sandbox. Monitoring the network traffic, you can see the compiled WebAssembly binary loading locally. This isolates the consensus mechanism, protecting the main thread from OmniCorp's memory leaks and ghost updates. The math executes in a secure environment.",
+                    duration: 14000,
+                    action: () => {
+                        showDevTools(true);
+                        delay(() => {
+                            DOM.wasmRow.classList.remove('hidden');
+                            DOM.wasmRow.classList.add('fade-scene', 'active');
+                        }, 2500);
+                    }
+                },
+                {
+                    id: 'ai-action',
+                    narration: "Let's test the local inference. I'll input a command to verify the Kyoto node gradients. Watch the response time. Because the neural net runs locally via Web Assembly, latency is practically zero. To prove the system is sovereign, I am severing the connection now. The connection is dead, yet the engine continues to generate narrative vectors flawlessly. One hundred percent client-side.",
+                    duration: 22000,
+                    action: () => {
+                        showDevTools(false);
+                        delay(() => {
+                            setPrompt('Verify Kyoto node gradients; isolate memory leak.');
+                        }, 2000);
+                        delay(() => {
+                            setPrompt('Awaiting node operator input...');
+                            showGenerated(true);
+                            typewriterWrite("Zero-Proof Verification: Complete. Byzantine Consensus reached at f=44.3%. Multi-Krum filter passed. The hum of the servers settled into a steady rhythm. The protocol was safe.");
+                        }, 6000);
+                        delay(() => {
+                            setOffline(true);
+                        }, 15000);
+                    }
+                },
+                {
+                    id: 'repo-tour',
+                    narration: "The source code is fully transparent and available in the repository. We've bridged high-performance Web Assembly with the P. B. G. Charter. You can review the zero-copy memory allocation protocols and see how we protect against row-hammer attacks within strict browser constraints.",
+                    duration: 13000,
+                    action: () => {
+                        setOffline(false);
+                        setAddress('github', 'github.com/rwilliamspbg-ops/SMP_Novels');
+                        showGithub(true);
+                    }
+                },
+                {
+                    id: 'conclusion',
+                    narration: "Math doesn't break. People do. Client-side AI is the only way to ensure data sovereignty against corporate capture. Access the repository. Listen to the hum yourself. I am not for sale.",
+                    duration: 12000,
+                    action: () => {
+                        setAddress('default', 'SMIP_CORE // localhost:3000');
+                        showGithub(false);
+                        DOM.speakerBubble.style.transform = 'scale(1.1)';
+                        DOM.speakerBubble.style.borderColor = 'var(--red)';
+                    }
+                }
+            ];
+
+            // --- Utilities ---
+            function delay(fn, ms) {
+                const t = setTimeout(fn, ms);
+                timeouts.push(t);
+                return t;
+            }
+
+            function clearAllTimers() {
+                timeouts.forEach(clearTimeout);
+                intervals.forEach(clearInterval);
+                if (typewriterInterval) clearInterval(typewriterInterval);
+                if (visualizerId) cancelAnimationFrame(visualizerId);
+                timeouts = [];
+                intervals = [];
+                typewriterInterval = null;
+                visualizerId = null;
+            }
+
+            function clamp(val, min, max) {
+                return Math.min(Math.max(val, min), max);
+            }
+
+            // --- Visualizer ---
+            function startVisualizer() {
+                const canvas = DOM.vizCanvas;
+                const ctx = canvas.getContext('2d');
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                const bars = 16;
+                let rotation = 0;
+
+                DOM.speakerIcon.style.opacity = '0';
+
+                function draw() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    rotation += 0.02;
+
+                    for (let i = 0; i < bars; i++) {
+                        const angle = (i / bars) * Math.PI * 2 + rotation;
+                        // Simulate audio data with sine waves + noise
+                        const simAmp = 0.5 + 0.5 * Math.sin(Date.now() * 0.005 + i * 1.3);
+                        const barHeight = 10 + simAmp * 25;
+                        const barWidth = 3;
+
+                        ctx.save();
+                        ctx.translate(centerX, centerY);
+                        ctx.rotate(angle);
+                        ctx.fillStyle = `rgba(0, 240, 255, ${0.4 + simAmp * 0.6})`;
+                        ctx.fillRect(20, -barWidth / 2, barHeight, barWidth);
+                        ctx.restore();
+                    }
+
+                    // Inner circle
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, 14, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(0, 240, 255, 0.6)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+
+                    visualizerId = requestAnimationFrame(draw);
+                }
+
+                draw();
+            }
+
+            function stopVisualizer() {
+                if (visualizerId) cancelAnimationFrame(visualizerId);
+                const ctx = DOM.vizCanvas.getContext('2d');
+                ctx.clearRect(0, 0, DOM.vizCanvas.width, DOM.vizCanvas.height);
+                DOM.speakerIcon.style.opacity = '1';
+            }
+
+            // --- Typewriter ---
+            function typewriterWrite(text) {
+                if (typewriterInterval) clearInterval(typewriterInterval);
+                DOM.genText.textContent = '';
+                let i = 0;
+                typewriterInterval = setInterval(() => {
+                    DOM.genText.textContent += text.charAt(i);
+                    i++;
+                    if (i >= text.length) {
+                        clearInterval(typewriterInterval);
+                        typewriterInterval = null;
+                        DOM.genText.classList.remove('typewriter-cursor');
+                    }
+                }, CONFIG.typewriterSpeed);
+                DOM.genText.classList.add('typewriter-cursor');
+            }
+
+            // --- Scene Helpers ---
+            function showSpeaker(show) {
+                DOM.speakerBubble.classList.toggle('hidden', !show);
+                DOM.speakerBubble.classList.toggle('flex', show);
+                if (show) {
+                    DOM.speakerBubble.classList.add('speaking-ring');
+                    startVisualizer();
+                } else {
+                    DOM.speakerBubble.classList.remove('speaking-ring');
+                    stopVisualizer();
+                }
+            }
+
+            function showCaptions(show) {
+                DOM.captionsContainer.classList.toggle('hidden', !show);
+            }
+
+            function showDevTools(show) {
+                DOM.sceneDevtools.classList.toggle('active', show);
+                DOM.sceneDevtools.setAttribute('aria-hidden', !show);
+            }
+
+            function showGithub(show) {
+                if (show) {
+                    DOM.sceneGithub.classList.remove('hidden');
+                    // Force reflow
+                    void DOM.sceneGithub.offsetWidth;
+                    DOM.sceneGithub.classList.add('active');
+                } else {
+                    DOM.sceneGithub.classList.remove('active');
+                    delay(() => DOM.sceneGithub.classList.add('hidden'), 500);
+                }
+                DOM.sceneGithub.setAttribute('aria-hidden', !show);
+            }
+
+            function setPrompt(text) {
+                DOM.promptInput.textContent = text;
+                DOM.promptInput.classList.toggle('text-white', text !== 'Awaiting node operator input...');
+                DOM.promptInput.classList.toggle('text-gray-500', text === 'Awaiting node operator input...');
+            }
+
+            function showGenerated(show) {
+                DOM.genContainer.classList.toggle('hidden', !show);
+            }
+
+            function setOffline(isOffline) {
+                if (isOffline) {
+                    DOM.wifiIcon.classList.replace('text-cyber-neon', 'text-cyber-red');
+                    DOM.netStatus.textContent = 'OFFLINE';
+                    DOM.netStatus.classList.add('text-cyber-red');
+                    DOM.addressBar.classList.replace('bg-cyber-gray', 'bg-cyber-red/20');
+                    DOM.addressBar.classList.replace('border-gray-700/50', 'border-cyber-red/50');
+                } else {
+                    DOM.wifiIcon.classList.replace('text-cyber-red', 'text-cyber-neon');
+                    DOM.netStatus.textContent = 'ONLINE';
+                    DOM.netStatus.classList.remove('text-cyber-red');
+                    DOM.addressBar.classList.replace('bg-cyber-red/20', 'bg-cyber-gray');
+                    DOM.addressBar.classList.replace('border-cyber-red/50', 'border-gray-700/50');
+                }
+            }
+
+            function setAddress(mode, text) {
+                const icon = mode === 'github' ? '<i class="fab fa-github text-white mr-2"></i>' : '<i class="fas fa-lock text-cyber-neon/70 mr-2"></i>';
+                DOM.addressBar.innerHTML = `${icon}<span id="address-text">${text}</span>`;
+                if (mode === 'github') {
+                    DOM.addressBar.classList.replace('bg-cyber-gray', 'bg-[#161b22]');
+                    DOM.addressBar.classList.replace('border-gray-700/50', 'border-[#30363d]');
+                } else {
+                    DOM.addressBar.classList.replace('bg-[#161b22]', 'bg-cyber-gray');
+                    DOM.addressBar.classList.replace('border-[#30363d]', 'border-gray-700/50');
+                }
+            }
+
+            function updateProgress() {
+                const pct = ((currentScene + 1) / SCRIPT.length) * 100;
+                DOM.progressBar.style.width = `${pct}%`;
+            }
+
+            // --- Speech ---
+            function loadVoices() {
+                return new Promise((resolve) => {
+                    const available = synth.getVoices();
+                    if (available.length > 0) {
+                        voices = available;
+                        resolve(voices);
+                        return;
+                    }
+                    synth.onvoiceschanged = () => {
+                        voices = synth.getVoices();
+                        resolve(voices);
+                    };
+                    // Fallback if event never fires
+                    setTimeout(() => {
+                        if (voices.length === 0) {
+                            voices = synth.getVoices();
+                            resolve(voices);
+                        }
+                    }, 1000);
+                });
+            }
+
+            function selectVoice() {
+                if (!voices.length) return null;
+                const prefs = [
+                    'Google UK English Male',
+                    'Microsoft David',
+                    'Daniel',
+                    'Fred',
+                    'Male'
+                ];
+                for (const name of prefs) {
+                    const found = voices.find(v => v.name.includes(name));
+                    if (found) return found;
+                }
+                return voices.find(v => v.lang.startsWith('en')) || voices[0];
+            }
+
+            function speakScene(index) {
+                if (index >= SCRIPT.length) {
+                    endPresentation();
+                    return;
+                }
+
+                currentScene = index;
+                updateProgress();
+                const scene = SCRIPT[index];
+                if (scene.action) scene.action();
+
+                // Update captions
+                DOM.captionsText.style.opacity = '0';
+                setTimeout(() => {
+                    DOM.captionsText.textContent = `> ${scene.narration}`;
+                    DOM.captionsText.style.opacity = '1';
+                }, 150);
+
+                // Setup utterance
+                utterance = new SpeechSynthesisUtterance(scene.narration);
+                utterance.rate = CONFIG.speechRate;
+                utterance.pitch = CONFIG.speechPitch;
+                const voice = selectVoice();
+                if (voice) utterance.voice = voice;
+
+                let hasEnded = false;
+
+                utterance.onend = () => {
+                    if (hasEnded) return;
                     hasEnded = true;
-                    if (synth.speaking) synth.cancel(); 
-                    playScene(index + 1);
-                }
-            }, 45000); // 45 seconds maximum safety net
-            
-            timeouts.push(fallbackTimeout);
+                    cleanupSpeech();
+                    delay(() => speakScene(index + 1), 400);
+                };
 
-            utterance.addEventListener('end', () => {
-                clearTimeout(fallbackTimeout);
-                clearInterval(resumeInterval);
-            });
+                utterance.onerror = (e) => {
+                    if (hasEnded) return;
+                    console.warn('Speech error:', e.error);
+                    hasEnded = true;
+                    cleanupSpeech();
+                    delay(() => speakScene(index + 1), 500);
+                };
 
-            synth.speak(utterance);
-        }
+                // Chrome 15s bug workaround
+                const resumeInt = setInterval(() => {
+                    if (synth.speaking && !synth.paused) {
+                        synth.pause();
+                        synth.resume();
+                    }
+                }, CONFIG.chromeResumeInterval);
+                intervals.push(resumeInt);
 
-        window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+                // Safety fallback
+                const fallback = setTimeout(() => {
+                    if (!hasEnded) {
+                        hasEnded = true;
+                        if (synth.speaking) synth.cancel();
+                        cleanupSpeech();
+                        speakScene(index + 1);
+                    }
+                }, scene.duration + 5000);
+                timeouts.push(fallback);
+
+                synth.speak(utterance);
+            }
+
+            function cleanupSpeech() {
+                // Don't cancel synth here, let onend handler manage flow
+            }
+
+            // --- Control Flow ---
+            function startPresentation() {
+                if (isPlaying) return;
+                isPlaying = true;
+
+                // Reset UI
+                clearAllTimers();
+                if (synth.speaking) synth.cancel();
+
+                DOM.playOverlay.style.display = 'none';
+                DOM.controlsOverlay.classList.remove('hidden');
+                DOM.progressContainer.classList.remove('hidden');
+
+                // Reset scenes
+                DOM.sceneDevtools.classList.remove('active');
+                DOM.sceneGithub.classList.add('hidden');
+                DOM.sceneGithub.classList.remove('active');
+                DOM.wasmRow.classList.add('hidden');
+                DOM.genContainer.classList.add('hidden');
+                DOM.genText.textContent = '';
+                setPrompt('Awaiting node operator input...');
+                setOffline(false);
+                setAddress('default', 'SMIP_CORE // localhost:3000');
+                DOM.speakerBubble.style.transform = '';
+                DOM.speakerBubble.style.borderColor = '';
+                DOM.speakerBubble.classList.remove('speaking-ring');
+
+                currentScene = -1;
+                speakScene(0);
+            }
+
+            function skipScene() {
+                if (!isPlaying) return;
+                if (synth.speaking) synth.cancel();
+                clearAllTimers();
+                // Cancel any pending typewriter
+                if (typewriterInterval) clearInterval(typewriterInterval);
+                speakScene(currentScene + 1);
+            }
+
+            function endPresentation() {
+                isPlaying = false;
+                clearAllTimers();
+                showSpeaker(false);
+                DOM.captionsText.textContent = "> The system hummed. And it felt right.";
+                DOM.controlsOverlay.classList.add('hidden');
+                DOM.progressContainer.classList.add('hidden');
+
+                delay(() => {
+                    DOM.playOverlay.style.display = 'flex';
+                    DOM.captionsContainer.classList.add('hidden');
+                }, 4000);
+            }
+
+            // --- Clock ---
+            function updateClock() {
+                const now = new Date();
+                DOM.sysTime.textContent = now.toTimeString().split(' ')[0];
+            }
+
+            // --- Event Listeners ---
+            function init() {
+                // Clock
+                updateClock();
+                setInterval(updateClock, 1000);
+
+                // Voice loading
+                loadVoices().then(() => {
+                    DOM.voiceStatus.textContent = 'Voice patterns loaded. Ready.';
+                    DOM.voiceStatus.classList.replace('text-gray-600', 'text-cyber-neon');
+                    DOM.startBtn.disabled = false;
+                }).catch(() => {
+                    DOM.voiceStatus.textContent = 'Voice fallback active.';
+                });
+
+                // Click handlers
+                DOM.startBtn.addEventListener('click', startPresentation);
+                DOM.skipBtn.addEventListener('click', skipScene);
+                DOM.replayBtn.addEventListener('click', () => {
+                    if (synth.speaking) synth.cancel();
+                    clearAllTimers();
+                    startPresentation();
+                });
+
+                // Keyboard
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space' && !isPlaying) {
+                        e.preventDefault();
+                        startPresentation();
+                    } else if (e.code === 'ArrowRight' && isPlaying) {
+                        e.preventDefault();
+                        skipScene();
+                    } else if (e.code === 'KeyR' && isPlaying) {
+                        e.preventDefault();
+                        if (synth.speaking) synth.cancel();
+                        clearAllTimers();
+                        startPresentation();
+                    }
+                });
+
+                // Expose hideDevTools for inline onclick
+                window.SMIP = {
+                    hideDevTools: () => showDevTools(false)
+                };
+            }
+
+            // Start
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+
+            // Public API
+            return {
+                hideDevTools: () => showDevTools(false),
+                start: startPresentation,
+                skip: skipScene
+            };
+        })();
     </script>
 </body>
 </html>
