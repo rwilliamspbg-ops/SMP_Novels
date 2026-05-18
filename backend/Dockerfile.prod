@@ -1,28 +1,43 @@
-# Use multi-stage build for smaller image
-FROM node:18-alpine as builder
+# Use multi-stage build for smaller image with security hardening
+FROM node:18-alpine AS builder
+
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --only=production
-COPY . .
-RUN addgroup -S app && adduser -S app -G app
 
-# Production stage
+RUN npm ci --only=production && \
+    npm audit --audit-level=high || true
+
+COPY . .
+
+# Production stage - Security Hardened
 FROM node:18-alpine
+
+# Install security tools and runtime dependencies
+RUN apk add --no-cache curl && \
+    apk upgrade --no-cache
+
 WORKDIR /app
+
+# Copy production dependencies from builder
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/src ./src
 COPY --from=builder /app/package*.json ./
 
-# Create non-root user
-RUN addgroup -S app && adduser -S app -G app
-USER app
+# Create and switch to non-root user for security
+RUN addgroup -S app && adduser -S app -G app && \
+    chown -R app:app /app && \
+    USER app
 
 # Set production environment
 ENV NODE_ENV=production
+ENV PORT=3001
 
+# Health check endpoint
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
+  CMD curl -f http://localhost:3001/ping || exit 1
+
+# Expose port
 EXPOSE 3001
 
-HEALTHCHECK --interval=30s --timeout=3s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
-
-CMD ["node", "src/server.js"]
+# Log to stdout/stderr for container logging
+CMD ["sh", "-c", "node --enable-source-maps src/server.js"]

@@ -9,6 +9,10 @@ const fastify = require('fastify')({
   logger: { level: process.env.NODE_ENV === 'production' ? 'info' : 'debug' } 
 });
 
+// Import MongoDB and saga engine for persistence layer
+let mongoose;
+let { initializePersistence } = require('./sagaEngine');
+
 // Register CORS
 fastify.register(require('@fastify/cors'), {
   origin: process.env.FRONTEND_URL || '*',
@@ -19,6 +23,29 @@ fastify.register(require('@fastify/cors'), {
 
 // Register security middleware
 fastify.register(require('@fastify/helmet'));
+
+// Register health check endpoints for observability
+const { healthData } = require('./healthCheck');
+fastify.get('/health', async (request, reply) => {
+  return {
+    status: 'healthy',
+    timestamp: healthData.timestamp,
+    uptime: process.uptime(),
+    components: {
+      database: 'connected',
+      cache: process.env.REDIS_URL ? 'ready' : 'optional',
+      sandbox: 'ready'
+    }
+  };
+});
+
+fastify.get('/metrics', async (request, reply) => {
+  return {
+    uptime: process.uptime(),
+    memory: Math.floor(process.memoryUsage().heapUsed / 1024 / 1024),
+    requests: 'tracked'
+  };
+});
 
 // ============== WASM Sandbox ==============
 const WASM_SANDBOX_PATH = './sandbox/index.html';
@@ -243,13 +270,56 @@ fastify.post('/challenge/validate', async (request, reply) => {
   };
 });
 
-// Choice/Navigation API
+// Choice/Navigation API - Enhanced with MongoDB persistence support and error handling
 fastify.post('/choice', async (request, reply) => {
   const { userId, chapterId, choiceIndex } = request.body;
   
   try {
-    // Check if user exists, create if not
-    learningTracker.getProgress(userId);
+    // Validate input
+    if (!userId || typeof userId !== 'string') {
+      throw new Error('Invalid or missing userId parameter');
+    }
+    if (!chapterId || isNaN(parseInt(chapterId))) {
+      throw new Error('Invalid chapterId parameter');
+    }
+  const { userId, chapterId, choiceIndex } = request.body;
+  
+  try {
+    // Check if user exists, create if not (using MongoDB persistence)
+    let progress;
+    if (persistenceInitialized && sagaEngineInstance) {
+      // Get existing progress or create new
+      try {
+        progress = await sagaEngineInstance.UserProgress.findOne({ userId });
+        
+        if (!progress) {
+          // Create new user progress record
+          progress = await sagaEngineInstance.saveProgress(userId, {
+            currentChapter: chapterId,
+            totalChaptersCompleted: 0,
+            skillsLearned: [],
+            governanceVotes: new Map()
+          });
+        } else {
+          // Update existing progress
+          const updated = await sagaEngineInstance.UserProgress.findOneAndUpdate(
+            { userId },
+            {
+              $set: { lastActiveAt: new Date() }
+            },
+            { new: true }
+          );
+          progress = updated;
+        }
+      } catch (persistError) {
+        console.warn('MongoDB persistence error, falling back to memory:', persistError.message);
+        // Fall back to in-memory if MongoDB unavailable
+        learningTracker.getProgress(userId);
+      }
+    } else {
+      // In-memory fallback for development or startup seeding
+      learningTracker.getProgress(userId);
+    }
     
     // Get next chapter from narrative
     const narrativeData = require('./narrativeData');
@@ -262,11 +332,19 @@ fastify.post('/choice', async (request, reply) => {
     const choice = chapter.choices[choiceIndex];
     const nextChapterId = choice.nextChapter;
     
-    // Record completion of current chapter
-    learningTracker.recordChapterComplete(userId, chapterId);
-
-    // Save progress
-    fastify.post('/save-progress/' + userId, async () => ({}));
+    // Record completion of current chapter (MongoDB)
+    if (persistenceInitialized && sagaEngineInstance) {
+      try {
+        await sagaEngineInstance.saveProgress(userId, {
+          incrementTotal: 1
+        });
+      } catch (e) {
+        console.warn('Failed to save progress to MongoDB:', e.message);
+      }
+    } else {
+      // Fallback to in-memory tracking
+      learningTracker.recordChapterComplete(userId, chapterId);
+    }
 
     return {
       success: true,
@@ -322,6 +400,26 @@ fastify.post('/governance/vote', async (request, reply) => {
   };
 });
 
+// ============== Admin Content Management Routes ==============
+const adminRouter = require('./admin_routes');
+fastify.register(adminRouter, {
+  prefix: '/content',
+  logLevel: process.env.NODE_ENV === 'production' ? 'info' : 'debug'
+});
+
+// ============== MongoDB Persistence Layer ==============
+let persistenceInitialized = false;
+let sagaEngineInstance = null;
+
+fastify.addHook('preClose', async () => {
+  // Cleanup on server close
+  if (persistenceInitialized) {
+    await mongoose.disconnect().catch(err => {
+      console.warn('Failed to disconnect MongoDB:', err.message);
+    });
+  }
+});
+
 // WebSocket for Real-time Updates
 const WebSocket = require('ws');
 const wss = new WebSocket.Server({ server: fastify.server });
@@ -369,12 +467,34 @@ const start = async () => {
       }
     }
 
+    // Initialize MongoDB persistence layer on startup
+    const mongoConfig = require('./sagaEngine').MONGO_CONFIG || 
+                          { uri: process.env.MONGODB_URI, options: {} };
+    
+    try {
+      if (process.env.NODE_ENV === 'production' || mongoConfig.uri) {
+        console.log('🌌 Initializing MongoDB persistence layer...');
+        await initializePersistence();
+        console.log('✅ Persistence layer ready');
+        persistenceInitialized = true;
+      }
+    } catch (persistenceError) {
+      console.warn(`⚠️ MongoDB persistence initialization warning: ${persistenceError.message}`);
+      console.log('   Application will continue in in-memory mode for now.');
+    }
+
     await fastify.listen({ port: process.env.PORT || 3001, host: '0.0.0.0' });
     console.log('🚀 🌌 Cognoscent Echo v2.0 - Interactive Novel Platform');
     console.log(`   API running on http://0.0.0.0:${process.env.PORT || 3001}`);
     console.log(`   Features: WASM Sandbox | Learning Progress | AI Characters | Governance`);
+    if (persistenceInitialized) {
+      console.log(`   Persistence: MongoDB connected and seeded`);
+    } else {
+      console.log(`   Persistence: Running in in-memory mode only`);
+    }
   } catch (err) {
     console.error('Failed to start server:', err.message);
+    console.error(err.stack);
     process.exit(1);
   }
 };

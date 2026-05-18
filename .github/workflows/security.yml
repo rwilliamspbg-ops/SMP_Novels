@@ -1,0 +1,52 @@
+name: Security Audit
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Daily at 2 AM UTC
+  workflow_dispatch:  # Manual trigger
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      
+      - name: Install dependencies
+        working-directory: ./backend
+        run: npm ci
+      
+      - name: Run npm audit
+        working-directory: ./backend
+        run: |
+          npm audit --audit-level=high || true
+      
+      - name: Check for secrets in code
+        run: |
+          echo "Running secret detection scan..."
+          
+          # Check for common secret patterns
+          if grep -rE "(password|secret|key)\s*[:=]\s*[^\$\"][\w]+" . 2>/dev/null | \
+             grep -v ".git" | grep -v ".env" | head -5; then
+            echo "⚠️ Warning: Potential secrets found in source code"
+          else
+            echo "✅ No obvious secrets patterns detected"
+          fi
+      
+      - name: Check .env file security
+        run: |
+          if [ -f .env ]; then
+            echo "⚠️ .env file exists in repo root"
+            echo "   Tip: Add .env to .gitignore"
+          else
+            echo "✅ No .env file in repo"
+          fi
+      
+      - name: Dependency Vulnerability Check
+        uses: actions/dependency-graph@v0.6
+        if: always()

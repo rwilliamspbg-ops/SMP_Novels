@@ -20,7 +20,9 @@
   },
   "scripts": {
     "start": "node src/server.js",
-    "check-env": "node scripts/check_env.js",
-    "dev": "node -r dotenv/config src/server_fastify.js"
+    "dev": "node -r dotenv/config src/server_fastify.js",
+    "test": "node -e \"require('fs').existsSync('./tests/') ? require('child_process').execSync('node tests/test_suite.js') : console.log('No test found');\"",
+    "seed": "node scripts/seed.js",
+    "check-env": "node scripts/check_env.js"
   }
 }
