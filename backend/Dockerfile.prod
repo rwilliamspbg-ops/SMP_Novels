@@ -25,8 +25,8 @@ COPY --from=builder /app/package*.json ./
 
 # Create and switch to non-root user for security
 RUN addgroup -S app && adduser -S app -G app && \
-    chown -R app:app /app && \
-    USER app
+    chown -R app:app /app
+USER app
 
 # Set production environment
 ENV NODE_ENV=production
@@ -40,4 +40,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
 EXPOSE 3001
 
 # Log to stdout/stderr for container logging
-CMD ["sh", "-c", "node --enable-source-maps src/server.js"]
+CMD ["sh", "-c", "node --enable-source-maps src/server_fastify.js"]
