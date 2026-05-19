@@ -47,8 +47,8 @@ Each chapter includes:
 
 ### Prerequisites
 
-- **Docker & Docker Compose** (for full stack)
-- **Node.js 18+** (for local development)
+- **Docker & Docker Compose** (v2.20+)
+- **Node.js 20+** (for local development)
 - Optional: Git CLI for version control
 
 ### First Time Setup
@@ -57,15 +57,18 @@ Each chapter includes:
 # 1. Clone and setup environment
 git clone https://github.com/rwilliamspbg-ops/SMP_Novels.git
 cd SMP_Novels
-cp .env.example .env
 
-# 2. Generate strong JWT secret (REQUIRED for production!)
+# 2. Choose environment
+cp .env.development .env  # For development
+cp .env.production .env   # For production
+
+# 3. Generate strong JWT secret (REQUIRED for production!)
 node -e "console.log(require('crypto').randomBytes(64).toString('hex'))" >> .env
 
-# 3. Build and start the stack
-docker-compose -f docker-compose.prod.yml up --build -d
+# 4. Build and start the stack
+docker compose -f docker-compose.prod.yml up --build -d
 
-# 4. Check health endpoints
+# 5. Check health endpoints
 curl http://localhost:3001/ping    # Backend API
 curl http://localhost:3001/sandbox # WASM Sandbox
 curl http://localhost:3000/        # Frontend UI
@@ -84,6 +87,16 @@ node src/server.js        # Run on port 3001
 cd frontend
 npm install
 npx serve .               # Simple static server
+```
+
+### Monitoring Stack (Optional)
+
+```bash
+# Start Prometheus + Grafana
+docker compose -f docker-compose.monitoring.yml up -d
+
+# Access Grafana at http://localhost:3001
+# Default credentials: admin/admin
 ```
 
 ## 🏗️ Architecture
@@ -109,6 +122,22 @@ npx serve .               # Simple static server
          │   Voting Records      │   Cache/Sockets │
          └───────────────────────┴─────────────────┘
 ```
+
+### Network Isolation
+
+The infrastructure uses isolated networks for security:
+- `frontend`: Public-facing services
+- `backend`: Internal API services
+- `database`: Database services (no external access)
+
+### Resource Limits
+
+All services have CPU and memory limits configured to prevent resource exhaustion:
+- MongoDB: 2 CPU, 2GB RAM
+- PostgreSQL: 2 CPU, 2GB RAM
+- Redis: 1 CPU, 1GB RAM
+- Backend: 2 CPU, 1GB RAM
+- Frontend: 1 CPU, 512MB RAM
 
 ## 📖 Chapter Flow Example
 
@@ -206,12 +235,28 @@ echo "POSTGRES_PASSWORD=your_secure_password_here" >> .env
 | `/chapter/:id` | GET | Get chapter content |
 | `/save-progress/:userId` | POST | Save user progress |
 
+### Prometheus Metrics
+
+Access metrics at `http://localhost:9090` (when monitoring stack is enabled):
+- Backend: `http://backend:3001/metrics`
+- Node Exporter: `http://node-exporter:9100/metrics`
+- MongoDB Exporter: `http://mongodb-exporter:9216/metrics`
+- PostgreSQL Exporter: `http://postgres-exporter:9187/metrics`
+- Redis Exporter: `http://redis-exporter:9121/metrics`
+
 ## 🛠️ Development Workflow
 
 ### 1. Start Services
 
 ```bash
-docker-compose -f docker-compose.prod.yml up --build -d
+# Development
+docker compose up --build -d
+
+# Production
+docker compose -f docker-compose.prod.yml up --build -d
+
+# With Monitoring
+docker compose -f docker-compose.monitoring.yml up -d
 ```
 
 ### 2. Run Individual Tests
@@ -229,6 +274,40 @@ node backend/src/edge_case_tests.js
 - Update `narrativeData.js` for new chapters
 - Modify `sandbox/index.html` for WASM changes
 - Test locally before committing
+
+## 🔧 Maintenance
+
+### Backup Management
+
+```bash
+# Run manual backups
+chmod +x scripts/*.sh
+./scripts/backup_mongodb.sh
+./scripts/backup_postgres.sh
+./scripts/backup_redis.sh
+
+# Automated backups (recommended)
+crontab -e
+# Add: 0 2 * * * /path/to/SMP_Novels/scripts/backup_mongodb.sh
+# Add: 0 3 * * * /path/to/SMP_Novels/scripts/backup_postgres.sh
+# Add: 0 4 * * * /path/to/SMP_Novels/scripts/backup_redis.sh
+```
+
+### Infrastructure Validation
+
+```bash
+# Validate all configurations
+chmod +x scripts/validate_infrastructure.sh
+./scripts/validate_infrastructure.sh
+```
+
+### Image Scanning
+
+```bash
+# Scan images for vulnerabilities
+trivy image ghcr.io/smpnovels/backend:latest
+trivy image ghcr.io/smpnovels/frontend:latest
+```
 
 ## 📚 API Documentation
 
@@ -287,12 +366,21 @@ See [DEPLOYMENT.md](DEPLOYMENT.md) for:
 
 ```bash
 # Production (with TLS, load balancer, monitoring)
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Verify deployment
 curl http://localhost:3001/ping
 curl http://localhost:3001/sandbox
 ```
+
+### CI/CD Pipeline
+
+The repository includes automated Docker publishing:
+1. Push to `main` branch triggers build
+2. Multi-arch images built (amd64/arm64)
+3. Trivy vulnerability scanning
+4. Images pushed to GHCR
+5. Semantic versioning tags applied
 
 ## 🧭 Getting Help
 

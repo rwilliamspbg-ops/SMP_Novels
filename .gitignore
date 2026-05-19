@@ -1,6 +1,42 @@
-.env
+# Dependencies
 node_modules/
+
+# Environment Files (Sensitive)
+.env
+.env.local
+.env.development
+.env.production
+.env.test
+.env.*.local
+
+# Secrets
+.secrets/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Cache
 /.venv
 /.cache
+
+# Build
 dist/
+build/
+
+# Logs
 *.log
+logs/
+
+# Backups
+backups/
+
+# Docker
+.docker/
+
+# Testing
+coverage/
