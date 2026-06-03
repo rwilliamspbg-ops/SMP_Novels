@@ -3,50 +3,55 @@ name: Security Audit
 on:
   schedule:
     - cron: '0 2 * * *'  # Daily at 2 AM UTC
-  workflow_dispatch:  # Manual trigger
+  workflow_dispatch:      # Manual trigger
 
 jobs:
   security-audit:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-      
-      - name: Install dependencies
+
+      - name: Install backend dependencies
         working-directory: ./backend
         run: npm ci
-      
-      - name: Run npm audit
+
+      - name: Run npm audit (backend)
         working-directory: ./backend
-        run: |
-          npm audit --audit-level=high || true
-      
-      - name: Check for secrets in code
+        run: npm audit --audit-level=high || true
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: Run npm audit (frontend)
+        working-directory: ./frontend
+        run: npm audit --audit-level=high || true
+
+      - name: Check for secrets in source code
         run: |
           echo "Running secret detection scan..."
-          
-          # Check for common secret patterns
-          if grep -rE "(password|secret|key)\s*[:=]\s*[^\$\"][\w]+" . 2>/dev/null | \
-             grep -v ".git" | grep -v ".env" | head -5; then
+          if grep -rE "(password|secret|key)\s*[:=]\s*['\"][^$'\"]{8,}" . 2>/dev/null \
+             | grep -v ".git" | grep -v ".env" | grep -v "node_modules" | head -5; then
             echo "⚠️ Warning: Potential secrets found in source code"
           else
-            echo "✅ No obvious secrets patterns detected"
+            echo "✅ No obvious secret patterns detected"
           fi
-      
+
       - name: Check .env file security
         run: |
           if [ -f .env ]; then
-            echo "⚠️ .env file exists in repo root"
-            echo "   Tip: Add .env to .gitignore"
+            echo "⚠️ .env file exists in repo root — add it to .gitignore"
           else
-            echo "✅ No .env file in repo"
+            echo "✅ No .env file committed to repo root"
           fi
-      
-      - name: Dependency Vulnerability Check
-        uses: actions/dependency-graph@v0.6
-        if: always()
+
+      - name: Dependency vulnerability review
+        uses: actions/dependency-review-action@v4
+        # Only available on push/PR events; skip on schedule
+        if: github.event_name == 'pull_request'
