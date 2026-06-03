@@ -1,42 +1,64 @@
 # Dependencies
 node_modules/
+npm-debug.*
+yarn-debug.log
+yarn-error.log
 
-# Environment Files (Sensitive)
+# Environment files
 .env
 .env.local
-.env.development
-.env.production
-.env.test
-.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Secrets
-.secrets/
+# Build outputs
+dist/
+build/
 
 # IDE
-.vscode/
 .idea/
+.vscode/
+*.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Cache
-/.venv
-/.cache
-
-# Build
-dist/
-build/
-
 # Logs
-*.log
 logs/
+*.log
+npm-debug.log*
 
-# Backups
-backups/
+# Database (production)
+postgres_data/
+redis_data/
 
-# Docker
-.docker/
+# Temporary files
+tmp/
+temp/
+*.tmp
 
-# Testing
+# Test coverage
 coverage/
+.nyc_output/
+
+# Lock files (optional - keep for reproducible builds)
+package-lock.json
+yarn.lock
+
+# Editor configs
+.gitignore
+.eslintignore
+.editorconfig
+
+# Documentation
+DEPLOYMENT.md
+README.md
+
+# Misc
+*.bak
+*.backup
+.cache/
+.pnpm-store/

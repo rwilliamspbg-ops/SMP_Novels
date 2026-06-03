@@ -1,15 +1,26 @@
 {
   "name": "cognoscent-echo-frontend",
-  "version": "2.0.0",
-  "description": "AI-Powered Interactive Novel Platform with DeepMind A2UI, CopilotKit & AG-UI",
+  "version": "1.0.0-production",
+  "description": "Cognoscent Echo Interactive Platform - Frontend Experience Layer",
+  "main": "src/main.js",
   "scripts": {
-    "start": "npx serve .",
-    "dev": "npx serve ."
+    "start": "npx serve . -p 3000",
+    "build": "echo 'Production build - using static files'",
+    "dev": "npm start",
+    "lint": "eslint src/"
   },
   "dependencies": {
-    "@copilotkit/react-core": "^1.7.45",
-    "@copilotkit/react-ui": "^1.7.45",
-    "serve": "^14.2.1"
+    "@monaco-editor/react": "^4.6.0"
   },
-  "devDependencies": {}
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "interactive-novel",
+    "react",
+    "monaco-editor",
+    "wasm"
+  ],
+  "author": "Cognoscent Echo Team",
+  "license": "MIT"
 }

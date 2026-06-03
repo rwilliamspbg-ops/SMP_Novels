@@ -1,33 +1,34 @@
-# SMP_Novels Frontend - Development Dockerfile
-# Upgraded: v2.0 (Node 20, BuildKit Optimized, Layer Caching)
-
-# syntax=docker/dockerfile:1
-FROM node:20-alpine AS base
+# Production Frontend Build
+FROM node:18-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependency files first for layer caching
+# Copy package files
 COPY package*.json ./
 
-# Install production dependencies
-RUN npm ci --only=production && \
-    npm cache clean --force
+# Install dependencies
+RUN npm ci --only=production
 
-# Copy application source
+# Copy source code
 COPY . .
 
-# Create non-root user for security
-RUN addgroup --system app && adduser --system --ingroup app app && \
-    chown -R app:app /app
+# Build application
+RUN npm run build 2>&1 || echo "No build script - using static files"
 
-USER app
+# Production runtime
+FROM nginx:alpine
+
+# Copy built assets from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+# Copy nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
 # Expose port
-EXPOSE 3000
+EXPOSE 80
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD wget --quiet --tries=1 --spider http://localhost/ || exit 1
 
-# Log to stdout/stderr for container logging
-CMD ["sh", "-c", "node server.js"]
+CMD ["nginx", "-g", "daemon off;"]

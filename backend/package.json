@@ -1,28 +1,42 @@
 {
-  "name": "interactive-novel-backend",
-  "version": "1.0.0",
-  "main": "src/server.js",
-  "dependencies": {
-    "@fastify/cors": "^11.2.0",
-    "@pinecone-database/pinecone": "^1.0.0",
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.5",
-    "dotenv": "^16.0.0",
-    "express": "^4.18.2",
-    "fastify": "^5.8.5",
-    "jsonwebtoken": "^9.0.0",
-    "mongoose": "^7.0.0",
-    "openai": "^4.0.0",
-    "pg": "^8.20.0",
-    "redis": "^5.12.1",
-    "stripe": "^12.0.0",
-    "ws": "^8.13.0"
-  },
+  "name": "cognoscent-echo-backend",
+  "version": "1.0.0-production",
+  "description": "Cognoscent Echo Interactive Platform - Backend API with PostgreSQL",
+  "main": "src/server_fastify.js",
   "scripts": {
-    "start": "node src/server.js",
-    "dev": "node -r dotenv/config src/server_fastify.js",
-    "test": "node -e \"require('fs').existsSync('./tests/') ? require('child_process').execSync('node tests/test_suite.js') : console.log('No test found');\"",
-    "seed": "node scripts/seed.js",
-    "check-env": "node scripts/check_env.js"
-  }
+    "start": "node src/server_fastify.js",
+    "dev": "nodemon src/server_fastify.js",
+    "test": "jest --coverage",
+    "lint": "eslint src/",
+    "audit-narrative": "node src/audit_narrative.js",
+    "health-check": "node -e \"const f=require('./src/database'); f.initializeSchema().then(()=>console.log('DB OK')).catch(e=>console.error(e))\"",
+    "init-db": "node -e \"const db=require('./src/database'); db.initializeSchema().then(()=>console.log('Schema initialized')).catch(e=>{console.error(e); process.exit(1)})\"",
+    "reset-user": "node -e \\\"const {getReaderProgress} = require('./src/database'); const uid=process.argv[2]||'test-user'; getReaderProgress(uid).then(p=>console.log(JSON.stringify(p,null,2))).catch(e=>console.error(e))\\\"",
+    "migrate": "node ./scripts/migrate.js"
+  },
+  "dependencies": {
+    "fastify": "^4.26.2",
+    "@fastify/cors": "^8.5.0",
+    "@fastify/rate-limit": "^9.1.0",
+    "helmet": "^7.1.0",
+    "pg": "^8.11.3",
+    "dotenv": "^16.3.1",
+    "pino-pretty": "^10.3.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "interactive-novel",
+    "saga-pattern",
+    "fastify",
+    "postgresql"
+  ],
+  "author": "Cognoscent Echo Team",
+  "license": "MIT"
 }

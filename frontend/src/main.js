@@ -1,624 +1,344 @@
-/**
- * Cognoscent Echo - A2UI + CopilotKit + AG-UI Powered Interface
- * Enhanced with MCP Apps, Live Metrics, and AI Copilot Integration
- */
+// Cognoscent Echo - Main Application Entry Point
+// Handles narrative loading, state management, and UI interactions
 
-// ===========================================
-// CONFIGURATION
-// ===========================================
-const API_BASE = '/api';
-const USER_ID_KEY = 'userId';
-let userId = localStorage.getItem(USER_ID_KEY) || null;
-let metricsSocket = null;
-let copilotConnected = false;
+document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize application state
+    const appState = {
+        currentChapterId: 1,
+        progress: null,
+        metrics: {
+            throughput: 0,
+            latency: 0,
+            resilience: 0,
+            energy: 0
+        },
+        userId: window.CognoscentBridge?.userId || 'anonymous',
+        unlockedNodes: ['prologue']
+    };
 
-// ===========================================
-// AG-UI COMPONENT REGISTRATION
-// ===========================================
-AG.registerComponent('NovelChapter', {
-    template: '<div class="chapter-card">{{text}}</div>',
-    props: ['text'],
-    bindings: {
-        nextChoice: 'choiceIndex'
+    // DOM Elements
+    const elements = {
+        authContainer: document.getElementById('auth-container'),
+        adminToggle: document.getElementById('admin-toggle'),
+        adminPanel: document.getElementById('admin-panel'),
+        loginForm: document.getElementById('login-form'),
+        storyText: document.getElementById('story-text'),
+        interactiveZone: document.getElementById('interactive-zone'),
+        choicesContainer: document.getElementById('choices-container'),
+        metricThroughput: document.getElementById('metric-throughput'),
+        metricLatency: document.getElementById('metric-latency'),
+        metricResilience: document.getElementById('metric-resilience'),
+        metricEnergy: document.getElementById('metric-energy')
+    };
+
+    // Initialize metrics display
+    function updateMetricsDisplay() {
+        elements.metricThroughput.textContent = appState.metrics.throughput || '-';
+        elements.metricLatency.textContent = appState.metrics.latency || '-';
+        elements.metricResilience.textContent = appState.metrics.resilience || '-';
+        elements.metricEnergy.textContent = appState.metrics.energy || '-';
     }
-});
 
-AG.registerComponent('WASMSandbox', {
-    template: '<div class="sandbox-container"><editor :code="code" /></div>',
-    props: ['code']
-});
-
-// ===========================================
-// A2UI BINDABLE STATE MANAGEMENT
-// ===========================================
-const state = {
-    // Metrics state (bound to A2UI)
-    metrics: {
-        throughput: 100,
-        latency: 50,
-        resilience: 80,
-        energy: 200
-    },
-    
-    // Auth state
-    auth: {
-        username: '',
-        password: ''
-    },
-    
-    // Sandbox state
-    sandbox: {
-        code: '// Write your Go code here...',
-        metrics: null
-    },
-    
-    // Governance state
-    governance: {
-        proposal: null,
-        votes: {}
-    },
-    
-    // Copilot state
-    copilot: {
-        query: '',
-        messages: []
-    }
-};
-
-// Make state accessible to A2UI framework
-window.CognoscentState = state;
-A2UI.registerBindable('cognoscent-state', () => state);
-
-// ===========================================
-// METRICS WebSocket CONNECTION
-// ===========================================
-function getMetricsSocketUrl() {
-    const url = new URL(window.location.href);
-    url.protocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
-    url.port = '3001';
-    url.pathname = '/';
-    return url.toString();
-}
-
-function connectMetricsStream() {
-    try {
-        metricsSocket = new WebSocket(getMetricsSocketUrl());
-        
-        metricsSocket.addEventListener('message', (event) => {
-            try {
-                const data = JSON.parse(event.data);
-                updateMetrics(data);
-                
-                // Update A2UI bound state
-                if (A2UI.isRegistered()) {
-                    A2UI.updateBound('metrics.throughput', data.throughput);
-                    A2UI.updateBound('metrics.latency', data.latency);
-                    A2UI.updateBound('metrics.resilience', data.resilience);
-                    A2UI.updateBound('metrics.energy', data.energy);
-                }
-            } catch (e) {
-                console.error('Metrics parse error:', e);
-            }
-        });
-        
-        metricsSocket.addEventListener('open', () => {
-            console.log('✅ Metrics WebSocket connected');
-        });
-        
-    } catch (error) {
-        console.error('Failed to connect metrics socket:', error);
-    }
-}
-
-function updateMetrics(data) {
-    document.getElementById('metric-throughput')?.textContent = Number(data.throughput).toFixed(1);
-    document.getElementById('metric-latency')?.textContent = Number(data.latency).toFixed(1);
-    document.getElementById('metric-resilience')?.textContent = Number(data.resilience).toFixed(1);
-    document.getElementById('metric-energy')?.textContent = Number(data.energy).toFixed(1);
-}
-
-// ===========================================
-// COPILOT KIT INTEGRATION
-// ===========================================
-async function initCopilotKit() {
-    try {
-        const CopilotKit = await import('@copilotkit/react-core');
-        
-        // Configure CopilotKit agent
-        await CopilotKit.init({
-            appId: 'cognoscent-echo',
-            serverUrl: '/api/copilot',
-            debug: true
-        });
-
-        copilotConnected = true;
-        console.log('✅ CopilotKit initialized');
-        
-        return true;
-    } catch (error) {
-        console.warn('CopilotKit not available:', error);
-        return false;
-    }
-}
-
-// ===========================================
-// API ENDPOINTS
-// ===========================================
-async function bridgeChoice(chapterId, choiceIndex) {
-    if (!userId) throw new Error('User not authenticated');
-    
-    const response = await fetch(`${API_BASE}/choice`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-            userId, 
-            chapterId, 
-            choiceIndex 
-        })
-    });
-    
-    if (!response.ok) throw new Error('Choice failed');
-    return response.json();
-}
-
-async function fetchChapter(id) {
-    try {
-        const response = await fetch(`${API_BASE}/chapter/${id}`);
-        return response.ok ? await response.json() : null;
-    } catch (error) {
-        console.error('Failed to load chapter:', error);
-        return null;
-    }
-}
-
-async function getProgress(userId) {
-    if (!userId) return null;
-    
-    const response = await fetch(`${API_BASE}/progress/${userId}`);
-    return response.ok ? await response.json() : null;
-}
-
-// ===========================================
-// AUTHENTICATION HANDLER
-// ===========================================
-const loginForm = document.getElementById('login-form');
-if (loginForm) {
-    loginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        
-        const formData = new FormData(loginForm);
-        const username = formData.get('username');
-        const password = formData.get('password');
-        
+    // Load chapter by ID
+    async function loadChapter(chapterId) {
         try {
-            // Set user ID and store credentials
-            userId = `user-${Date.now()}`;
-            localStorage.setItem(USER_ID_KEY, userId);
+            appState.currentChapterId = chapterId;
             
-            // Generate simple session token (in production use proper auth)
-            const token = btoa(`${username}:${password}-${Date.now()}`);
-            sessionStorage.setItem('auth-token', token);
+            // Fetch chapter data
+            const chapter = await window.CognoscentBridge.fetchChapter(chapterId);
             
-            // Update state for A2UI
-            if (A2UI.isRegistered()) {
-                A2UI.updateBound('auth.username', '');
-                A2UI.updateBound('auth.password', '');
+            if (!chapter) {
+                throw new Error(`Chapter ${chapterId} not found`);
             }
-            
-            // Hide auth screen and load chapter
-            document.getElementById('auth-container')?.classList.add('hidden');
-            
-            // Load initial chapter
-            await loadChapter(1);
-            
-            console.log(`✅ User authenticated: ${userId}`);
-            
-        } catch (error) {
-            console.error('Authentication failed:', error);
-            alert('Authentication failed. Please try again.');
-        }
-    });
-}
 
-// ===========================================
-// MAIN LOADING FUNCTION
-// ===========================================
-async function loadChapter(id, showFeedback = true) {
-    let chapter;
-    
-    try {
-        chapter = await fetchChapter(id);
-    } catch (error) {
-        console.error('Failed to load chapter:', error);
-        
-        const storyText = document.getElementById('story-text');
-        if (storyText) {
-            storyText.innerHTML = 'Unable to reach the backend. Make sure Docker is running.';
-        }
-        return false;
-    }
-    
-    if (!chapter || chapter.error) {
-        if (showFeedback && document.getElementById('story-text')) {
-            document.getElementById('story-text').innerHTML = 
-                'Chapter data unavailable.';
-        }
-        return false;
-    }
-    
-    // Update UI
-    const storyText = document.getElementById('story-text');
-    const choicesContainer = document.getElementById('choices-container');
-    const interactiveZone = document.getElementById('interactive-zone');
-    const governanceZone = document.getElementById('governance-zone');
-    const chapterHeader = document.getElementById('chapter-header');
-    
-    // Render chapter text with typing effect
-    if (storyText) {
-        showTypingEffect(storyText, chapter.text);
-    }
-    
-    // Clear previous elements
-    if (choicesContainer) choicesContainer.innerHTML = '';
-    if (interactiveZone) interactiveZone.classList.add('hidden');
-    if (governanceZone) governanceZone.classList.add('hidden');
-    
-    // Check for learning outcomes
-    if (chapter.learningOutcomes && chapter.learningOutcomes.length > 0) {
-        const outcomesPanel = document.getElementById('learning-outcomes-panel');
-        if (outcomesPanel) {
-            outcomesPanel.classList.remove('hidden');
-            const list = document.getElementById('outcomes-list');
-            if (list) {
-                list.innerHTML = chapter.learningOutcomes.map(outcome => 
-                    `<div class="outcome-item">💡 ${outcome}</div>`
-                ).join('');
-            }
-        }
-    }
-    
-    // Render interactive elements
-    if (chapter.interactiveElement) {
-        const elem = chapter.interactiveElement;
-        
-        // WASM Exercise
-        if (elem.type === 'wasm_exercise') {
-            interactiveZone.classList.remove('hidden');
+            // Render chapter content
+            elements.storyText.innerHTML = renderStoryText(chapter);
             
-            if (elem.starterCode) {
-                document.getElementById('code-editor').value = elem.starterCode;
+            // Render interactive element if present
+            if (chapter.interactiveElement) {
+                renderInteractiveElement(chapter.interactiveElement);
+            } else {
+                elements.interactiveZone.innerHTML = '';
+            }
+
+            // Render choices
+            renderChoices(chapter.choices);
+
+            // Update metrics display
+            updateMetricsDisplay();
+
+        } catch (error) {
+            console.error('[App] Error loading chapter:', error);
+            elements.storyText.innerHTML = `
+                <p style="color: #ff4444; padding: 20px; text-align: center;">
+                    <strong>Error:</strong> ${error.message}
+                </p>
+            `;
+        }
+    }
+
+    // Render story text with formatting
+    function renderStoryText(chapter) {
+        // Escape HTML to prevent XSS
+        const escapedText = chapter.text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+
+        return `<p style="font-size: 1.2rem; line-height: 1.6; margin: 0;">${escapedText}</p>`;
+    }
+
+    // Render interactive element (code snippet, vote, etc.)
+    function renderInteractiveElement(element) {
+        const zone = elements.interactiveZone;
+        
+        switch (element.type) {
+            case 'code_snippet':
+                renderCodeSnippet(element);
+                break;
+            case 'governance_vote':
+                renderGovernanceVote(element);
+                break;
+            default:
+                zone.innerHTML = `<p>Interactive element type "${element.type}" not implemented yet.</p>`;
+        }
+    }
+
+    // Render code snippet with Monaco editor
+    function renderCodeSnippet(element) {
+        const container = document.createElement('div');
+        container.style.cssText = 'background: #1e1e1e; border-radius: 8px; padding: 15px; margin: 20px 0;';
+        container.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <strong style="color: #00ffcc;">Code Playground</strong>
+                <span style="font-size: 0.8rem; color: #888;">${element.description}</span>
+            </div>
+            <div id="${element.id}" style="min-height: 150px;"></div>
+            <div style="margin-top: 10px; font-size: 0.9rem; color: #00ffcc;">
+                ${element.validationRules ? `<strong>Validation:</strong> ${element.validationRules.map(r => r.condition).join(', ')}` : ''}
+            </div>
+        `;
+
+        // Initialize Monaco Editor
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
+        require(['vs/editor/editor.main'], function() {
+            const editor = monaco.editor.create(document.getElementById(element.id), {
+                value: element.initialCode,
+                language: element.language || 'javascript',
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                fontSize: 14,
+                fontFamily: 'Consolas, Monaco, "Courier New", monospace'
+            });
+
+            // Add validation check button
+            const validateBtn = document.createElement('button');
+            validateBtn.textContent = 'Validate Code';
+            validateBtn.style.cssText = 'margin-top: 10px; padding: 8px 16px; background: #00ffcc; border: none; border-radius: 4px; cursor: pointer;';
+            validateBtn.onclick = async () => {
+                // Simple validation for demo
+                const container = document.getElementById(element.id);
+                container.innerHTML += `<div style="color: #00ffcc; margin-top: 10px;">✓ Validation successful!</div>`;
                 
-                // Bind to A2UI state
-                if (A2UI.isRegistered()) {
-                    A2UI.updateBound('sandbox.code', elem.starterCode);
-                }
-            }
-            
-            // Set exercise feedback
-            if (elem.feedback) {
-                const feedback = document.getElementById('wasm-feedback-panel');
-                if (feedback) {
-                    feedback.innerHTML = `
-                        <h5>${elem.description}</h5>
-                        <p class="learning-goal">${elem.learningGoal}</p>
-                    `;
-                    feedback.classList.remove('hidden');
-                }
-            }
-        }
-        
-        // Governance Vote
-        if (elem.type === 'governance_vote') {
-            governanceZone.classList.remove('hidden');
-            
-            const proposalText = document.getElementById('proposal-text');
-            if (proposalText) {
-                proposalText.textContent = elem.description;
-            }
-            
-            const optionsContainer = document.getElementById('voting-options');
-            if (optionsContainer && elem.options && elem.options.length > 0) {
-                optionsContainer.innerHTML = elem.options.map((option, index) => `
-                    <div class="option-card" 
-                         data-option-id="${option.id}"
-                         onclick="handleVote('${option.id}', '${option.text}')">
-                        ${option.text}
-                        <small style="display:block; color:var(--text-muted); margin-top:5px;">
-                            Impact: ${option.impact || 'See discussion'}
-                        </small>
-                    </div>
-                `).join('');
-            }
-        }
-    }
-    
-    // Render choices
-    if (chapter.choices && chapter.choices.length > 0) {
-        const nextChapterId = chapter.choices[0].nextChapter;
-        
-        chapter.choices.forEach((choice, index) => {
-            const btn = document.createElement('button');
-            btn.className = 'choice-btn';
-            btn.textContent = choice.text;
-            btn.onclick = async () => {
-                await bridgeChoice(id, index);
-                await loadChapter(nextChapterId);
-                
-                // Send to Copilot if connected
-                if (copilotConnected) {
-                    window.CopilotKit?.sendEvent({
-                        type: 'chapter-transition',
-                        payload: { 
-                            from: id, 
-                            to: nextChapterId, 
-                            choice: choice.text 
-                        }
+                // Add validation feedback if provided
+                if (element.validationRules) {
+                    element.validationRules.forEach(rule => {
+                        const feedback = document.createElement('div');
+                        feedback.style.cssText = 'margin-top: 5px; font-size: 0.8rem; color: #00ffcc;';
+                        feedback.textContent = `✓ ${rule.feedback}`;
+                        container.appendChild(feedback);
                     });
                 }
             };
             
-            choicesContainer.appendChild(btn);
+            container.appendChild(validateBtn);
         });
-    }
-    
-    return true;
-}
 
-// ===========================================
-// TYPING EFFECT FOR STORY TEXT
-// ===========================================
-function showTypingEffect(element, text) {
-    element.innerHTML = '';
-    let index = 0;
-    
-    const typeInterval = setInterval(() => {
-        element.textContent += text.charAt(index);
-        index++;
-        
-        if (index >= text.length) {
-            clearInterval(typeInterval);
-            
-            // Add blinking cursor when done
-            setTimeout(() => {
-                if (element.lastChild) {
-                    element.lastChild.textContent = `${element.lastChild.textContent}|`;
+        zone.appendChild(container);
+    }
+
+    // Render governance vote
+    function renderGovernanceVote(element) {
+        const container = document.createElement('div');
+        container.style.cssText = 'background: #2d2d2d; border-radius: 8px; padding: 15px; margin: 20px 0;';
+        container.innerHTML = `
+            <div style="margin-bottom: 15px;">
+                <strong style="color: #00ffcc;">Proposal:</strong> ${element.proposalId}
+            </div>
+            <p style="margin-bottom: 15px;">${element.description}</p>
+            <div id="vote-options">
+                ${element.options.map((option, index) => `
+                    <button 
+                        class="vote-option" 
+                        data-option-id="${option.id}" 
+                        data-option-text="${option.text.replace(/"/g, '&quot;')}"
+                        style="display: block; width: 100%; padding: 12px; margin: 8px 0; background: #3d3d3d; border: 2px solid transparent; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.95rem; text-align: left; transition: all 0.2s;"
+                        onmouseover="this.style.borderColor='#00ffcc'"
+                        onmouseout="this.style.borderColor='transparent'"
+                    >
+                        ${option.text}
+                    </button>
+                `).join('')}
+            </div>
+            <div id="vote-result" style="margin-top: 15px; font-size: 0.9rem; color: #888;"></div>
+        `;
+
+        // Add click handlers for vote options
+        container.querySelectorAll('.vote-option').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const optionId = parseInt(btn.dataset.optionId);
+                
+                try {
+                    const result = await window.CognoscentBridge.recordChoice(
+                        appState.currentChapterId, 
+                        optionId
+                    );
+                    
+                    const resultDiv = container.querySelector('#vote-result');
+                    if (resultDiv) {
+                        resultDiv.innerHTML = `✓ Vote recorded! Moving to chapter ${result.nextChapterId}`;
+                        resultDiv.style.color = '#00ffcc';
+                        
+                        // Delay for effect then load next chapter
+                        setTimeout(() => {
+                            loadChapter(result.nextChapterId);
+                        }, 1500);
+                    }
+                } catch (error) {
+                    const resultDiv = container.querySelector('#vote-result');
+                    if (resultDiv) {
+                        resultDiv.textContent = `Error: ${error.message}`;
+                        resultDiv.style.color = '#ff4444';
+                    }
                 }
-            }, 500);
-        }
-    }, 30); // Type speed in ms
-}
-
-// ===========================================
-// WASM SANDBOX HANDLERS
-// ===========================================
-document.getElementById('run-code-btn')?.addEventListener('click', async () => {
-    const code = document.getElementById('code-editor').value;
-    
-    try {
-        const response = await fetch(`${API_BASE}/sandbox/execute`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                code, 
-                memoryInput: {},
-                userId 
-            })
-        });
-        
-        if (!response.ok) throw new Error('Execution failed');
-        
-        const result = await response.json();
-        console.log('Code execution result:', result);
-        
-        // Update A2UI bound metrics
-        if (A2UI.isRegistered() && state.sandbox.metrics) {
-            state.sandbox.metrics.throughput = result.executionTime;
-            A2UI.updateBound('sandbox.metrics', state.sandbox.metrics);
-        }
-        
-    } catch (error) {
-        console.error('Sandbox execution error:', error);
-    }
-});
-
-document.getElementById('inspect-memory-btn')?.addEventListener('click', async () => {
-    // Simulate memory inspection
-    const output = document.getElementById('interactive-zone');
-    if (output) {
-        output.innerHTML += '<div style="margin-top:10px;color:#10b981;">✅ Memory inspection complete</div>';
-        
-        // Send to Copilot for analysis
-        if (copilotConnected) {
-            window.CopilotKit?.sendEvent({
-                type: 'memory-inspected',
-                payload: { timestamp: Date.now() }
             });
-        }
-    }
-});
-
-document.getElementById('reset-code-btn')?.addEventListener('click', () => {
-    if (A2UI.isRegistered()) {
-        A2UI.updateBound('sandbox.code', '// Write your Go code here...');
-    }
-    
-    document.getElementById('code-editor').value = '';
-});
-
-// ===========================================
-// GOVERNANCE VOTE HANDLER
-// ===========================================
-async function handleVote(optionId, optionText) {
-    try {
-        const response = await fetch(`${API_BASE}/governance/vote`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                proposalId: 'G-2029-047',
-                optionId,
-                userId
-            })
         });
-        
-        if (response.ok) {
-            // Update UI feedback
-            document.getElementById('wasm-feedback-panel')?.innerHTML = `
-                <h5>✅ Vote Recorded</h5>
-                <p>You've chosen: ${optionText}</p>
+
+        zone.appendChild(container);
+    }
+
+    // Render choices buttons
+    function renderChoices(choices) {
+        const container = elements.choicesContainer;
+        container.innerHTML = '';
+
+        if (!choices || choices.length === 0) return;
+
+        choices.forEach((choice, index) => {
+            const btn = document.createElement('button');
+            btn.textContent = choice.text;
+            btn.style.cssText = `
+                padding: 12px 24px; 
+                margin: 8px; 
+                background: linear-gradient(135deg, #00ffcc 0%, #00997a 100%); 
+                border: none; 
+                border-radius: 6px; 
+                color: #fff; 
+                font-size: 1rem; 
+                cursor: pointer; 
+                transition: transform 0.2s, box-shadow 0.2s;
             `;
             
-            // Send to Copilot
-            if (copilotConnected) {
-                window.CopilotKit?.sendEvent({
-                    type: 'vote-recorded',
-                    payload: { optionId, optionText }
-                });
-            }
-        } else {
-            throw new Error('Vote failed');
-        }
-    } catch (error) {
-        console.error('Vote error:', error);
-    }
-}
-
-// ===========================================
-// COPILOT CHAT HANDLERS
-// ===========================================
-const sendMessageBtn = document.getElementById('send-message-btn');
-const copilotInput = document.getElementById('copilot-input');
-
-if (sendMessageBtn && copilotInput) {
-    sendMessageBtn.addEventListener('click', handleCopilotMessage);
-    
-    copilotInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleCopilotMessage();
-        }
-    });
-}
-
-async function handleCopilotMessage() {
-    const query = copilotInput.value.trim();
-    if (!query || !copilotConnected) return;
-    
-    // Add user message
-    const messages = document.getElementById('chat-messages');
-    if (messages) {
-        const userMsg = document.createElement('div');
-        userMsg.className = 'chat-message user';
-        userMsg.textContent = query;
-        messages.appendChild(userMsg);
-        
-        // Clear input and scroll to bottom
-        copilotInput.value = '';
-        messages.scrollTop = messages.scrollHeight;
-    }
-    
-    // Get AI response (simplified - in production use real Copilot API)
-    try {
-        const response = await fetch('/api/copilot/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query, userId })
-        });
-        
-        const data = await response.json();
-        
-        // Add AI response
-        if (messages) {
-            const aiMsg = document.createElement('div');
-            aiMsg.className = 'chat-message assistant';
-            aiMsg.innerHTML = formatCopilotResponse(data.response);
-            messages.appendChild(aiMsg);
+            btn.onmouseover = (e) => {
+                e.target.style.transform = 'translateY(-2px)';
+                e.target.style.boxShadow = '0 4px 12px rgba(0, 255, 204, 0.3)';
+            };
             
-            messages.scrollTop = messages.scrollHeight;
-        }
+            btn.onmouseout = (e) => {
+                e.target.style.transform = '';
+                e.target.style.boxShadow = '';
+            };
+
+            btn.onclick = async () => {
+                try {
+                    await window.CognoscentBridge.recordChoice(
+                        appState.currentChapterId,
+                        index
+                    );
+                    
+                    // Get next chapter from choice data
+                    const nextChapterId = choice.nextChapter;
+                    if (nextChapterId) {
+                        setTimeout(() => loadChapter(nextChapterId), 1000);
+                    }
+                } catch (error) {
+                    console.error('[App] Error recording choice:', error);
+                    alert(`Error: ${error.message}`);
+                }
+            };
+
+            container.appendChild(btn);
+        });
+    }
+
+    // Admin panel toggle
+    elements.adminToggle.addEventListener('click', () => {
+        const isHidden = elements.adminPanel.style.display === 'none';
+        elements.adminPanel.style.display = isHidden ? 'block' : 'none';
         
-    } catch (error) {
-        console.error('Copilot chat error:', error);
-    }
-    
-    // Update A2UI bound state
-    if (A2UI.isRegistered()) {
-        A2UI.updateBound('copilot.query', '');
-    }
-}
-
-function formatCopilotResponse(text) {
-    // Simple formatting for Copilot responses
-    return text.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*/g, '<strong>$1</strong>');
-}
-
-// ===========================================
-// ADMIN TOGGLE (Show/Hide SaaS Admin Panel)
-// ===========================================
-document.getElementById('admin-toggle')?.addEventListener('click', () => {
-    const panel = document.getElementById('admin-panel');
-    if (panel) {
-        panel.classList.toggle('hidden');
-    }
-});
-
-// ===========================================
-// SIDEBAR TOGGLE
-// ===========================================
-const copilotTrigger = document.querySelector('.copilot-trigger');
-const sidebar = document.getElementById('copilot-sidebar');
-const closeSidebarBtn = document.getElementById('close-sidebar');
-
-if (copilotTrigger) {
-    copilotTrigger.addEventListener('click', () => {
-        sidebar.classList.toggle('hidden');
-        
-        if (!sidebar.classList.contains('hidden')) {
-            // Focus chat input when sidebar opens
-            setTimeout(() => copilotInput?.focus(), 100);
+        if (isHidden) {
+            document.body.style.overflow = 'hidden'; // Prevent scrolling when admin panel is visible
+        } else {
+            document.body.style.overflow = '';
         }
     });
-}
 
-if (closeSidebarBtn) {
-    closeSidebarBtn.addEventListener('click', () => {
-        sidebar.classList.add('hidden');
+    // Login form handling
+    elements.loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const formData = new FormData(elements.loginForm);
+        const username = formData.get('username');
+        const password = formData.get('password');
+
+        try {
+            // Simple auth check (would use proper auth service in production)
+            if (username && password && username.length > 0 && password.length > 0) {
+                elements.authContainer.style.display = 'none';
+                elements.adminToggle.style.display = 'block';
+                
+                // Initialize progress for new user
+                appState.progress = await window.CognoscentBridge.getProgress(appState.userId);
+                appState.unlockedNodes = appState.progress?.unlocked_nodes || ['prologue'];
+                
+                console.log('[App] User authenticated:', { username });
+            } else {
+                alert('Please enter valid credentials');
+            }
+        } catch (error) {
+            alert(`Authentication failed: ${error.message}`);
+        }
     });
-}
 
-// ===========================================
-// INITIALIZATION
-// ===========================================
-async function init() {
-    // Connect metrics stream immediately
-    connectMetricsStream();
-    
-    // Wait for CopilotKit to initialize
-    await initCopilotKit();
-    
-    // Load first chapter (only after auth if needed)
-    const authContainer = document.getElementById('auth-container');
-    if (!authContainer || !authContainer.classList.contains('hidden')) {
-        return; // Still waiting for auth
-    }
-    
+    // Save new chapter from admin panel
+    document.getElementById('save-node')?.addEventListener('click', async () => {
+        const text = document.getElementById('node-text').value;
+        const aiPrompt = document.getElementById('node-ai').value;
+        
+        if (!text || !aiPrompt) {
+            alert('Please fill in all fields');
+            return;
+        }
+
+        try {
+            // In production, this would POST to backend API
+            console.log('[Admin] New chapter created:', { text, aiPrompt });
+            alert('Chapter deployed to core! (Demo mode)');
+            
+            // Reset form
+            document.getElementById('node-text').value = '';
+            document.getElementById('node-ai').value = '';
+        } catch (error) {
+            alert(`Failed to deploy chapter: ${error.message}`);
+        }
+    });
+
     // Load initial chapter
-    await loadChapter(1);
-    
-    // Initialize A2UI bindings
-    if (A2UI.isRegistered()) {
-        console.log('✅ A2UI bindings initialized');
-    }
-    
-    console.log('🚀 Cognoscent Echo v2.0 initialized with A2UI + CopilotKit + AG-UI');
-}
+    loadChapter(1);
 
-// Start on page load
-document.addEventListener('DOMContentLoaded', init);
-
-// ===========================================
-// EXPORT FOR GLOBAL ACCESS
-// ===========================================
-window.CognoscentBridge = {
-    bridgeChoice,
-    fetchChapter,
-    userId: userId || 'anonymous'
-};
+    // Export for debugging
+    window.appState = appState;
+});

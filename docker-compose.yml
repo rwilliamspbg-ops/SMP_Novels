@@ -1,210 +1,28 @@
-# SMP_Novels Docker Infrastructure - Development Environment
-# Upgraded: v2.0 (Comprehensive Security, Reliability & Performance)
-
-version: '3.9'
-
-# Network Isolation for Security
-networks:
-  frontend:
-    driver: bridge
-  backend:
-    driver: bridge
-    internal: true
-  database:
-    driver: bridge
-    internal: true
-
-# Global log rotation configuration
-x-logging: &default-logging
-  driver: json-file
-  options:
-    max-size: "10m"
-    max-file: "3"
-
-# Graceful shutdown configuration
-x-shutdown: &graceful-shutdown
-  stop_grace_period: 30s
-  stop_signal: SIGTERM
-
-# Resource limits configuration
-x-resources: &default-resources
-  resources:
-    limits:
-      cpus: '1.0'
-      memory: 512M
-    reservations:
-      cpus: '0.25'
-      memory: 128M
-
+version: '3.8'
 services:
   mongodb:
-    image: mongo:7.0
-    networks:
-      - database
+    image: mongo:latest
     ports:
       - "27017:27017"
     volumes:
       - mongo_data:/data/db
-      - ./backups/mongo:/backups
-    environment:
-      - MONGO_INITDB_DATABASE=interactive_novel
-    healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-    <<: *graceful-shutdown
-
-  postgres:
-    image: postgres:15.4
-    networks:
-      - database
-    ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./backups/postgres:/backups
-    environment:
-      - POSTGRES_USER=${POSTGRES_USER:-novel_user}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-secure_password}
-      - POSTGRES_DB=${POSTGRES_DB:-echo_db}
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-novel_user} -d ${POSTGRES_DB:-echo_db}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 1G
-    <<: *graceful-shutdown
-
-  redis:
-    image: redis:7.2-alpine
-    networks:
-      - database
-    ports:
-      - "6379:6379"
-    volumes:
-      - redisdata:/data
-      - ./backups/redis:/backups
-    command: redis-server --save 60 1 --loglevel warning
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
-    <<: *graceful-shutdown
 
   backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-      args:
-        - NODE_VERSION=20
-    networks:
-      - backend
-      - frontend
+    build: ./backend
     ports:
       - "3001:3001"
-    env_file:
-      - .env.development
     environment:
-      - NODE_ENV=development
       - MONGODB_URI=mongodb://mongodb:27017/interactive_novel
-      - JWT_SECRET=${JWT_SECRET}
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-novel_user}:${POSTGRES_PASSWORD:-secure_password}@postgres:5432/${POSTGRES_DB:-echo_db}
-      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=saas_super_secret_key_99
     depends_on:
-      mongodb:
-        condition: service_healthy
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    volumes:
-      - ./backups:/app/backups
-    tmpfs:
-      - /tmp
-      - /app/sessions
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: '2.0'
-          memory: 1G
-    <<: *graceful-shutdown
+      - mongodb
 
   frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        - NODE_VERSION=20
-    networks:
-      - frontend
+    build: ./frontend
     ports:
       - "3000:3000"
-    env_file:
-      - .env.development
     depends_on:
-      backend:
-        condition: service_healthy
-    restart: unless-stopped
-    volumes:
-      - ./backups:/app/backups
-    tmpfs:
-      - /tmp
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:3000/ || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
-    logging: *default-logging
-    deploy:
-      resources:
-        limits:
-          cpus: '1.0'
-          memory: 512M
-    <<: *graceful-shutdown
+      - backend
 
 volumes:
   mongo_data:
-  pgdata:
-  redisdata:
-
-# Monitoring Stack (Optional - Enable via docker-compose.monitoring.yml)
-# services:
-#   prometheus:
-#     image: prom/prometheus:latest
-#     volumes:
-#       - ./prometheus.yml:/etc/prometheus/prometheus.yml
-#     ports:
-#       - "9090:9090"
-#     networks:
-#       - frontend
-#   grafana:
-#     image: grafana/grafana:latest
-#     ports:
-#       - "3001:3000"
-#     networks:
-#       - frontend

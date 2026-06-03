@@ -1,4 +1,4 @@
-﻿// LiteLLM integration is optional. The router currently returns mock responses.
+﻿const LiteLLM = require('litellm'); // Mocking litellm import for scaffold
 
 class AiRouter {
     constructor() {

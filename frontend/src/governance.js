@@ -1,6 +1,4 @@
-﻿const API_BASE = '/api';
-
-function renderGovernanceModule(proposal) {
+﻿function renderGovernanceModule(proposal) {
     const div = document.createElement('div');
     div.className = 'gov-module';
     div.style.background = '#161b22';
@@ -23,7 +21,7 @@ function renderGovernanceModule(proposal) {
     div.querySelectorAll('.gov-btn').forEach(btn => {
         btn.onclick = async () => {
             const optionId = btn.dataset.id;
-            const response = await fetch(`${API_BASE}/governance/vote`, {
+            const response = await fetch('http://localhost:3001/governance/vote', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
