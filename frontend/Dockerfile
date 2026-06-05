@@ -1,25 +1,9 @@
-# Production Frontend Build
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-
-# Copy package files
-COPY package*.json ./
-
-# Install dependencies
-RUN npm ci --only=production
-
-# Copy source code
-COPY . .
-
-# Build application
-RUN npm run build 2>&1 || echo "No build script - using static files"
-
-# Production runtime
+# Production Frontend - Static Files with Nginx
 FROM nginx:alpine
 
-# Copy built assets from builder
-COPY --from=builder /app/dist /usr/share/nginx/html
+# Copy static files directly (no build step needed for vanilla JS)
+COPY index.html /usr/share/nginx/html/
+COPY src/ /usr/share/nginx/html/src/
 
 # Copy nginx configuration
 COPY nginx.conf /etc/nginx/conf.d/default.conf

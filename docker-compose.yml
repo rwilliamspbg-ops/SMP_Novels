@@ -1,28 +1,38 @@
 version: '3.8'
 services:
-  mongodb:
-    image: mongo:latest
+  postgres:
+    image: postgres:15-alpine
     ports:
-      - "27017:27017"
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=interactive_novel
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
     volumes:
-      - mongo_data:/data/db
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init.sql
 
   backend:
     build: ./backend
     ports:
       - "3001:3001"
     environment:
-      - MONGODB_URI=mongodb://mongodb:27017/interactive_novel
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=interactive_novel
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
       - JWT_SECRET=saas_super_secret_key_99
+      - NODE_ENV=production
     depends_on:
-      - mongodb
+      - postgres
 
   frontend:
     build: ./frontend
     ports:
-      - "3000:3000"
+      - "3000:80"
     depends_on:
       - backend
 
 volumes:
-  mongo_data:
+  postgres_data:
