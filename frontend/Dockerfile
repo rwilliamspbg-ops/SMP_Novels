@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 # Production Frontend - Static Files with Nginx (SMP_Novels)
+=======
+# Production Frontend - Static Files with Nginx
+>>>>>>> 4c387ba72dfa8f59ca98f446f5acaf661e2e4e19
 FROM nginx:alpine
 
 # Copy static files directly (no build step needed for vanilla JS)

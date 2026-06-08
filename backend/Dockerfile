@@ -45,8 +45,12 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
 
 # Expose port
 EXPOSE 3001
+<<<<<<< HEAD
 
 # Use tini for proper PID 1 handling and signal forwarding
 ENTRYPOINT ["/sbin/tini", "--"]
 
 CMD ["node", "src/server_fastify.js"]
+=======
+CMD ["node", "src/server_fastify.js"]
+>>>>>>> 4c387ba72dfa8f59ca98f446f5acaf661e2e4e19
