@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (Primary Data Store)
   postgres:
     image: postgres:15-alpine
     container_name: cognoscent-postgres
@@ -14,19 +14,18 @@ services:
       - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backend/init-db.sql:/docker-entrypoint-initdb.d/init-scripts.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-interactive_novel}"]
       interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - cognoscent-network
 
-  # Backend API Server
+  # Backend API Server (Fastify + PostgreSQL)
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: cognoscent-backend
     restart: unless-stopped
     ports:
@@ -39,64 +38,41 @@ services:
       DB_NAME: ${DB_NAME:-interactive_novel}
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-cognoscent_secure_jwt_key_production_2024}
+      JWT_SECRET: ${JWT_SECRET:-$(openssl rand -hex 32)}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
       RATE_LIMIT_TIME_WINDOW: ${RATE_LIMIT_TIME_WINDOW:-1m}
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - cognoscent-network
     deploy:
       resources:
         limits:
           cpus: '2'
           memory: 512M
 
-  # Frontend Web Server
+  # Frontend Web Server (Static + API Proxy)
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.prod
     container_name: cognoscent-frontend
     restart: unless-stopped
     ports:
-      - "3000:80"
+      - "3000:3000"
     depends_on:
       - backend
-    networks:
-      - cognoscent-network
     deploy:
       resources:
         limits:
           cpus: '1'
           memory: 256M
 
-  # Redis Cache (Optional - for governance votes)
-  redis:
-    image: redis:7-alpine
-    container_name: cognoscent-redis
-    restart: unless-stopped
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
-    command: redis-server --appendonly yes
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - cognoscent-network
-
 volumes:
   postgres_data:
     driver: local
-  redis_data:
-    driver: local
 
-networks:
-  cognoscent-network:
-    driver: bridge
+# Note: Redis and monitoring services are optional
+# Add them back by uncommenting sections in docker-compose.prod.yml
+# or using separate docker-compose.monitoring.yml file
