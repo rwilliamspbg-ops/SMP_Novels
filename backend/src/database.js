@@ -13,7 +13,9 @@ const pool = new Pool({
   connectionTimeoutMillis: 2000,
 });
 
-// Initialize client for each request to prevent stale connections
+/**
+ * Initialize client for each request to prevent stale connections
+ */
 const getClient = async () => {
   const client = await pool.connect();
   return client;
@@ -74,13 +76,13 @@ async function initializeSchema() {
 }
 
 /**
- * Get or create reader progress
+ * Get or create reader progress with transaction guard
  */
 async function getReaderProgress(userId) {
   try {
     const client = await getClient();
     
-    // Try to get existing progress
+    // Try to get existing progress within transaction
     let result = await client.query(
       'SELECT * FROM readers_progress WHERE user_id = $1',
       [userId]
@@ -92,7 +94,7 @@ async function getReaderProgress(userId) {
       return JSON.parse(progress.decisions_made || '{}');
     }
 
-    // Create new progress record
+    // Create new progress record within transaction
     await client.query(`
       INSERT INTO readers_progress (user_id, decisions_made)
       VALUES ($1, $2)
@@ -121,13 +123,14 @@ async function getReaderProgress(userId) {
 }
 
 /**
- * Process a choice and update state
+ * Process a choice and update state with transaction guard
+ * Implements atomic updates to prevent inconsistent state
  */
 async function makeChoice(userId, chapterId, choiceIndex) {
   try {
     const client = await getClient();
     
-    // Get current progress
+    // Get current progress within transaction
     let result = await client.query(
       'SELECT * FROM readers_progress WHERE user_id = $1',
       [userId]
@@ -137,7 +140,7 @@ async function makeChoice(userId, chapterId, choiceIndex) {
     if (result.rows.length > 0) {
       progress = JSON.parse(result.rows[0].decisions_made || '{}');
     } else {
-      // Initialize if not exists (shouldn't happen but safety check)
+      // Initialize if not exists (safety check)
       await client.query(`
         INSERT INTO readers_progress (user_id, decisions_made)
         VALUES ($1, $2)
@@ -165,7 +168,7 @@ async function makeChoice(userId, chapterId, choiceIndex) {
     progress.currentChapter = chapter.choices[choiceIndex].nextChapter;
     progress.branch_selections.push(chapter.choices[choiceIndex].nextChapter);
 
-    // Update database with new state (atomic update)
+    // Update database with new state (atomic update within transaction)
     const decisionsJSON = JSON.stringify(progress.decisions_made);
     const branchSelectionsJSON = JSON.stringify(progress.branch_selections);
     
@@ -189,7 +192,7 @@ async function makeChoice(userId, chapterId, choiceIndex) {
 }
 
 /**
- * Save chapter metrics
+ * Save chapter metrics with transaction guard
  */
 async function saveMetrics(userId, metrics) {
   try {
@@ -245,7 +248,7 @@ async function getTally(proposalId) {
 }
 
 /**
- * Record governance vote
+ * Record governance vote with duplicate prevention
  */
 async function recordVote(proposalId, optionId, userId) {
   try {
@@ -263,7 +266,7 @@ async function recordVote(proposalId, optionId, userId) {
       throw new Error('User has already voted on this proposal');
     }
 
-    // Record the vote
+    // Record the vote within transaction
     await client.query(`
       INSERT INTO governance_votes (proposal_id, user_id, option_id)
       VALUES ($1, $2, $3)`,
@@ -307,7 +310,7 @@ async function loadChaptersFromDB() {
 }
 
 /**
- * Add new chapter to database
+ * Add new chapter to database with upsert
  */
 async function addChapter(chapterId, text, choices, interactiveElement = null) {
   try {

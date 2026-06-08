@@ -2,25 +2,32 @@
   "name": "cognoscent-echo-frontend",
   "version": "1.0.0-production",
   "description": "Cognoscent Echo Interactive Platform - Frontend Experience Layer",
-  "main": "src/main.js",
+  "type": "commonjs",
+  "main": "index.html",
   "scripts": {
-    "start": "npx serve . -p 3000",
+    "start": "node server.js",
     "build": "echo 'Production build - using static files'",
     "dev": "npm start",
     "lint": "eslint src/"
   },
-  "dependencies": {
-    "@monaco-editor/react": "^4.6.0"
-  },
+  "dependencies": {},
   "engines": {
     "node": ">=18.0.0"
   },
   "keywords": [
     "interactive-novel",
-    "react",
     "monaco-editor",
     "wasm"
   ],
   "author": "Cognoscent Echo Team",
-  "license": "MIT"
+  "license": "MIT",
+  "files": [
+    "index.html",
+    "src/**/*.js",
+    "src/**/*.css",
+    "server.js",
+    "package.json",
+    "nginx.conf"
+  ],
+  "proxy": "http://localhost:3001"
 }

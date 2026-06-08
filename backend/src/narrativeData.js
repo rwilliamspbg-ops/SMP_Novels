@@ -1,3 +1,5 @@
+const { executeTransactional, recordEvent } = require('../src/database_utils');
+
 const narrativeData = {
   chapters: {
     1: {
@@ -38,7 +40,7 @@ const narrativeData = {
     },
     3: {
       id: 3,
-      text: "The terminal flashes with red warnings. You see the AF_XDP descriptors failing to align. The throughput is dropping precipitously. You realize the leak isn\'t accidental; it is a coordinated attack on the memory fabric.",
+      text: "The terminal flashes with red warnings. You see the AF_XDP descriptors failing to align. The throughput is dropping precipitously. You realize the leak isn't accidental; it is a coordinated attack on the memory fabric.",
       choices: [
         { text: "Alert Elias immediately", nextChapter: 2 },
         { text: "Try to patch the leak manually", nextChapter: 6 }
@@ -61,6 +63,53 @@ const narrativeData = {
         { text: "Discuss the implications with Elias", nextChapter: 2 }
       ]
     }
+  },
+  
+  /**
+   * Helper function to log narrative events with transaction safety
+   * @param {string} userId - User making the choice
+   * @param {number} chapterId - Current chapter being played
+   * @param {object} choiceData - Choice details
+   */
+  async logNarrativeEvent(userId, chapterId, choiceData) {
+    // This ensures every narrative event is immutably recorded
+    await executeTransactional(async (client) => {
+      await client.query(
+        `INSERT INTO narrative_events (user_id, event_type, payload, occurred_at) 
+         VALUES ($1, $2, $3, NOW())`,
+        [userId, 'PLAYER_MADE_CHOICE', JSON.stringify({
+          chapter: chapterId,
+          choiceText: choiceData?.text || choiceData?.choice?.text || 'N/A'
+        })]
+      );
+    });
+  },
+  
+  /**
+   * Process a governance vote with event sourcing
+   * @param {string} userId - User voting
+   * @param {string} proposalId - Governance proposal ID
+   * @param {number} optionId - Selected option
+   */
+  async logGovernanceVote(userId, proposalId, optionId) {
+    await executeTransactional(async (client) => {
+      // Record governance event
+      await client.query(
+        `INSERT INTO narrative_events (user_id, event_type, payload, occurred_at) 
+         VALUES ($1, $2, $3, NOW())`,
+        [userId, 'DAO_VOTE_CAST', JSON.stringify({
+          proposal: proposalId,
+          option: optionId
+        })]
+      );
+      
+      // Also record in governance_votes table (existing functionality)
+      await client.query(
+        `INSERT INTO governance_votes (proposal_id, user_id, option_id)
+         VALUES ($1, $2, $3)`,
+        [proposalId, userId, optionId]
+      );
+    });
   }
 };
 
