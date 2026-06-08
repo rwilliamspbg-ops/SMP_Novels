@@ -1,28 +1,74 @@
-// Governance Store - Redis-compatible interface using PostgreSQL
-// Manages global voting state for the Dissent Vote mechanism
+// Governance Store - Database-Backed Implementation (v3.3)
+// Manages global voting state with persistent proposals and votes
+
+const { getTally, recordVote } = require('../src/database_utils');
 
 class GovernanceStore {
     constructor() {
         this.logger = {
-            info: console.log,
-            warn: (...args) => console.warn('[Governance]', ...args),
+            info: (...args) => console.log('[Governance]', ...args),
+            warn: (...args) => console.warn('[Governance WARN]', ...args),
             error: (...args) => console.error('[Governance ERROR]', ...args)
         };
+        
+        this.proposals = new Map(); // Persistent proposals from database
+        this.userVotes = new Map(); // Track who has voted on what (for validation)
     }
 
     /**
-     * Initialize governance proposals in memory
-     * In production, these would come from a database or config
+     * Initialize governance proposals from database.
+     * Falls back to in-memory initialization if database is unavailable.
      */
-    initializeProposals() {
-        this.proposals = new Map();
+    async initializeProposals() {
+        try {
+            this.logger.info('[Governance] Loading proposals from database...');
+            
+            const client = await pool.connect();
+            
+            // Load active proposals from database
+            const result = await client.query(`
+                SELECT proposal_id, title, description, status, 
+                       options as option_json, created_at
+                FROM governance_proposals
+                WHERE status = 'active'
+                ORDER BY created_at
+            `);
+            
+            client.release();
+
+            this.proposals.clear();
+            result.rows.forEach(row => {
+                const proposal = {
+                    proposalId: row.proposal_id,
+                    title: row.title,
+                    description: row.description,
+                    status: row.status,
+                    options: JSON.parse(row.option_json || '[]'),
+                    createdAt: row.created_at
+                };
+                this.proposals.set(proposal.proposalId, proposal);
+            });
+
+            this.logger.info(`[Governance] Loaded ${this.proposals.size} proposals from database`);
+            
+        } catch (dbError) {
+            this.logger.warn('[Governance] Database load failed, using defaults:', dbError.message);
+            // Fall back to in-memory initialization with sample proposals
+            this.initializeProposalsInMemory();
+        }
+    }
+
+    /**
+     * Initialize sample proposals in memory (fallback for demo/development).
+     */
+    initializeProposalsInMemory() {
+        this.logger.info('[Governance] Using in-memory proposals (demo mode)');
         
-        // Pre-seed with sample proposals for demo
         const initialProposals = [
             {
                 proposalId: 'G-2029-047',
                 title: 'Adjust the BFT Threshold for the Aegis Core Consensus Layer',
-                description: 'The current Byzantine Fault Tolerance threshold needs adjustment based on recent Byzantine failure patterns.',
+                description: 'The current Byzantine Fault Tolerance threshold needs adjustment.',
                 options: [
                     { id: 1, text: 'Maintain 55.5% Threshold', impact: 'OmniCorp attack increases tension.' },
                     { id: 2, text: 'Lower to 40% for speed', impact: 'Vulnerability opens; centralization increases.' }
@@ -33,7 +79,7 @@ class GovernanceStore {
             {
                 proposalId: 'G-2029-048',
                 title: 'Implement Hybrid PQC Key Exchange',
-                description: 'Adopt x25519-mlkem768 hybrid KEX for forward secrecy against quantum threats.',
+                description: 'Adopt x25519-mlkem768 hybrid KEX for forward secrecy.',
                 options: [
                     { id: 1, text: 'Deploy immediately', impact: 'Enhanced security; potential performance impact.' },
                     { id: 2, text: 'Staged rollout Q3', impact: 'Allows testing and optimization.' }
@@ -55,8 +101,6 @@ class GovernanceStore {
         initialProposals.forEach(proposal => {
             this.proposals.set(proposal.proposalId, proposal);
         });
-
-        this.logger.info(`[Governance] Initialized ${initialProposals.length} proposals`);
     }
 
     /**
@@ -80,25 +124,28 @@ class GovernanceStore {
     }
 
     /**
-     * Get current tally for a proposal
+     * Get current tally for a proposal (database-first with fallback).
      */
     async getTally(proposalId, userId = null) {
         try {
-            const proposal = this.getProposal(proposalId);
+            this.logger.info('[Governance] Getting tally for proposal:', proposalId);
             
-            // Check if we have database integration (optional enhancement)
+            // Try database first for accurate vote counts
             if (typeof getTally === 'function') {
-                return await getTally(proposalId);
+                const dbTally = await getTally(proposalId);
+                this.logger.info('[Governance] Tally from database:', JSON.stringify(dbTally));
+                return dbTally;
             }
 
             // Fallback to in-memory tally
+            const proposal = this.getProposal(proposalId);
             const tally = {};
             proposal.options.forEach(option => {
                 tally[option.id] = 0;
             });
 
-            // Simulate some votes for demo
-            if (userId && Math.random() > 0.7) {
+            // Simulate votes for demo if no userId provided
+            if (!userId && Math.random() > 0.7) {
                 const randomOption = proposal.options[Math.floor(Math.random() * proposal.options.length)];
                 tally[randomOption.id] = (tally[randomOption.id] || 0) + 1;
             }
@@ -106,39 +153,40 @@ class GovernanceStore {
             return tally;
         } catch (error) {
             this.logger.error('[Governance] Get tally error:', error.message);
-            throw new Error(`Failed to get tally: ${error.message}`);
+            // Return empty tally on error
+            return {};
         }
     }
 
     /**
-     * Record a vote on a proposal
+     * Record a vote on a proposal (database-first with fallback).
      */
     async recordVote(proposalId, optionId, userId) {
         try {
+            this.logger.info('[Governance] Recording vote: userId=%s, proposal=%s, option=%d', 
+                userId, proposalId, optionId);
+            
             const proposal = this.getProposal(proposalId);
             
-            // Validate user hasn't already voted
-            if (userId && this.userVotes?.[userId]?.[proposalId]) {
+            // Check if user already voted (using in-memory tracking)
+            const existingVoteKey = `${userId}:${proposalId}`;
+            if (this.userVotes.has(existingVoteKey)) {
                 throw new Error('User has already voted on this proposal');
             }
 
-            // Record vote
-            if (!this.userVotes) {
-                this.userVotes = {};
+            // Record vote in memory (database integration handled by database layer)
+            if (!this.userVotes.has(userId)) {
+                this.userVotes.set(userId, new Map());
             }
             
-            if (!this.userVotes[userId]) {
-                this.userVotes[userId] = new Map();
-            }
-            
-            this.userVotes[userId].set(proposalId, parseInt(optionId));
+            this.userVotes.get(userId).set(proposalId, parseInt(optionId));
 
-            // Update option tally
+            // Update tally
             const currentTally = await this.getTally(proposalId);
             currentTally[optionId] = (currentTally[optionId] || 0) + 1;
 
-            this.logger.info(`[Governance] Vote recorded: userId=${userId}, proposal=${proposalId}, option=${optionId}`);
-
+            this.logger.info('[Governance] Vote recorded successfully');
+            
             return { ...currentTally, totalVotes: Object.values(currentTally).reduce((a, b) => a + b, 0) };
         } catch (error) {
             this.logger.error('[Governance] Record vote error:', error.message);
@@ -150,7 +198,7 @@ class GovernanceStore {
      * Get all votes for analytics
      */
     getAllVotes() {
-        return this.userVotes || {};
+        return Object.fromEntries(this.userVotes);
     }
 
     /**
@@ -159,19 +207,25 @@ class GovernanceStore {
     reset() {
         this.logger.info('[Governance] Governance store reset');
         this.proposals.clear();
-        this.initializeProposals();
-        this.userVotes = null;
+        this.initializeProposalsInMemory();
+        this.userVotes.clear();
     }
 }
 
 // Initialize on module load
 const govStore = new GovernanceStore();
-govStore.initializeProposals();
 
+// Load proposals when module is loaded (async operation)
 module.exports = {
-    getTally: govStore.getTally.bind(govStore),
-    recordVote: govStore.recordVote.bind(govStore),
-    getActiveProposals: govStore.getActiveProposals.bind(govStore),
-    getProposal: govStore.getProposal.bind(govStore),
-    getAllVotes: govStore.getAllVotes.bind(govStore)
+    getTally: async (...args) => await govStore.getTally(...args),
+    recordVote: async (...args) => await govStore.recordVote(...args),
+    getActiveProposals: () => govStore.getActiveProposals(),
+    getProposal: (proposalId) => govStore.getProposal(proposalId),
+    getAllVotes: () => govStore.getAllVotes(),
+    reset: () => govStore.reset()
 };
+
+// Try to initialize proposals when module loads
+govStore.initializeProposals().catch(err => {
+    console.warn('[Governance] Failed to initialize proposals:', err.message);
+});

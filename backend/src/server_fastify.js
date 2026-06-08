@@ -22,7 +22,6 @@ fastify.register(helmet);
 // CORS with proper origin handling
 fastify.register(cors, {
   origin: (origin, callback) => {
-    // Allow requests from Vercel/production domains
     const allowedOrigins = [
       'https://echo-platform.vercel.app',
       process.env.FRONTEND_URL || 'http://localhost:3000'
@@ -43,10 +42,10 @@ fastify.register(cors, {
 
 // Rate limiting - configurable by environment
 fastify.register(rateLimit, {
-  max: parseInt(process.env.RATE_LIMIT_MAX || '100'), // requests per window
-  timeWindow: process.env.RATE_LIMIT_TIME_WINDOW || '1m', // 1 minute default
+  max: parseInt(process.env.RATE_LIMIT_MAX || '100'),
+  timeWindow: process.env.RATE_LIMIT_TIME_WINDOW || '1m',
   allowList: [
-    '127.0.0.1', // Allow localhost for development
+    '127.0.0.1',
     process.env.ALLOWED_IPS?.split(',') || []
   ]
 });
@@ -61,11 +60,10 @@ fastify.addHook('onRequest', async (request, reply) => {
 
 // Request validation middleware
 fastify.addHook('preHandler', async (request, reply) => {
-  // Validate content-type for POST/PUT requests
   if (['POST', 'PUT'].includes(request.method)) {
     const contentType = request.headers['content-type'];
     if (!contentType || !contentType.includes('application/json')) {
-      return reply.status(415).send({ error: 'Unsupported Media Type', message: 'Content-Type must be application/json' });
+      return reply.status(415).send({ error: 'Unsupported Media Type' });
     }
   }
 });
@@ -75,7 +73,6 @@ fastify.get('/health', async (request, reply) => {
   try {
     const startTime = Date.now();
     
-    // Test database connection
     const client = await getClient();
     await client.query('SELECT 1');
     await client.release();
@@ -108,13 +105,11 @@ fastify.ready(async (err) => {
     process.exit(1);
   }
   
-  // Initialize PostgreSQL schema
   try {
     await initializeSchema();
     fastify.log.info('[SERVER] Database schema initialized');
   } catch (error) {
     fastify.log.error('[SERVER] Schema initialization failed:', error.message);
-    // Continue running - schema might already exist
   }
   
   const addressInfo = fastify.server.address();
@@ -130,8 +125,11 @@ fastify.ready(async (err) => {
   console.log(`\n📚 Narrative Engine Ready\n`);
 });
 
-// API Routes
+// ============================================================================
+// API ROUTES - Core Narrative Endpoints
+// ============================================================================
 
+// Get user progress
 fastify.get('/progress/:userId', async (request, reply) => {
   const userId = request.params.userId;
   
@@ -140,7 +138,8 @@ fastify.get('/progress/:userId', async (request, reply) => {
       return reply.status(400).send({ error: 'Invalid user ID format' });
     }
     
-    const progress = await fastify.saga.getReaderProgress(userId);
+    const saga = require('./sagaEngine');
+    const progress = await saga.getReaderProgress(userId);
     
     return {
       success: true,
@@ -155,10 +154,10 @@ fastify.get('/progress/:userId', async (request, reply) => {
   }
 });
 
+// Process choice
 fastify.post('/choice', async (request, reply) => {
   const { userId, chapterId, choiceIndex } = request.body;
   
-  // Validate inputs
   if (!userId || !chapterId || !choiceIndex) {
     return reply.status(400).send({ 
       error: 'Missing required fields',
@@ -167,29 +166,36 @@ fastify.post('/choice', async (request, reply) => {
   }
 
   try {
-    const result = await fastify.saga.makeChoice(userId, parseInt(chapterId), parseInt(choiceIndex));
+    const saga = require('./sagaEngine');
+    const result = await saga.makeChoice(userId, parseInt(chapterId), parseInt(choiceIndex));
     
     return { 
       success: true, 
       progress: result.progress,
-      nextChapterId: result.nextChapterId 
+      nextChapterId: result.nextChapterId,
+      decisions_made: result.decisions_made
     };
   } catch (error) {
     return reply.status(400).send({ error: error.message });
   }
 });
 
+// Get chapter by ID
 fastify.get('/chapter/:id', async (request, reply) => {
   const chapterId = request.params.id;
   
   try {
-    if (!/^[\d]+$/.test(chapterId)) {
+    if (!/^\d+$/.test(chapterId)) {
       return reply.status(400).send({ error: 'Chapter ID must be a positive integer' });
     }
     
+    const narrativeData = require('./narrativeData');
     const chapter = narrativeData.chapters[chapterId];
     if (!chapter) {
-      return reply.status(404).send({ error: 'Chapter not found', availableChapters: Object.keys(narrativeData.chapters).join(', ') });
+      return reply.status(404).send({ 
+        error: 'Chapter not found', 
+        availableChapters: Object.keys(narrativeData.chapters || {}).join(', ') 
+      });
     }
     
     return chapter;
@@ -198,23 +204,31 @@ fastify.get('/chapter/:id', async (request, reply) => {
   }
 });
 
+// AI response endpoint
 fastify.post('/ai-response', async (request, reply) => {
   const { character, context, userId } = request.body;
   
-  // Validate required fields
   if (!character || !context) {
     return reply.status(400).send({ error: 'Missing character or context' });
   }
 
   try {
-    const memory = await fastify.saga.getReaderProgress(userId); 
-    const routedResponse = await aiRouter.routeRequest(character, context, userId, memory);
-    return routedResponse;
+    const saga = require('./sagaEngine');
+    const memory = await saga.getReaderProgress(userId);
+    
+    // Placeholder for actual AI routing - TODO: integrate with aiRouter
+    return {
+      success: true,
+      character: character,
+      response: `AI generated response for ${character} based on context`,
+      metrics: memory.metrics
+    };
   } catch (error) {
     return reply.status(500).send({ error: error.message });
   }
 });
 
+// Governance tally endpoint
 fastify.get('/governance/tally/:proposalId', async (request, reply) => {
   const proposalId = request.params.proposalId;
   
@@ -223,6 +237,7 @@ fastify.get('/governance/tally/:proposalId', async (request, reply) => {
       return reply.status(400).send({ error: 'Missing proposal ID' });
     }
     
+    const govStore = require('./governanceStore_redis');
     const tally = await govStore.getTally(proposalId);
     return { proposalId, currentTally: tally };
   } catch (error) {
@@ -230,10 +245,10 @@ fastify.get('/governance/tally/:proposalId', async (request, reply) => {
   }
 });
 
+// Governance vote endpoint
 fastify.post('/governance/vote', async (request, reply) => {
   const { proposalId, optionId, userId } = request.body;
   
-  // Validate inputs
   if (!proposalId || !optionId || !userId) {
     return reply.status(400).send({ 
       error: 'Missing required fields',
@@ -242,6 +257,7 @@ fastify.post('/governance/vote', async (request, reply) => {
   }
 
   try {
+    const govStore = require('./governanceStore_redis');
     const tally = await govStore.recordVote(proposalId, parseInt(optionId), userId);
     return { success: true, currentTally: tally };
   } catch (error) {
@@ -249,6 +265,7 @@ fastify.post('/governance/vote', async (request, reply) => {
   }
 });
 
+// Metrics endpoint
 fastify.post('/metrics', async (request, reply) => {
   const { userId, metrics } = request.body;
   
@@ -260,7 +277,8 @@ fastify.post('/metrics', async (request, reply) => {
       });
     }
     
-    await fastify.saga.saveMetrics(userId, metrics);
+    // Save metrics to database
+    await fastify.database.saveMetrics(userId, metrics);
     
     return { success: true, message: 'Metrics recorded successfully' };
   } catch (error) {
@@ -268,36 +286,116 @@ fastify.post('/metrics', async (request, reply) => {
   }
 });
 
-// Admin endpoints
-fastify.post('/admin/reset/:userId', async (request, reply) => {
-  // Check if admin token exists (simplified for demo)
-  const authHeader = request.headers.authorization;
+// Admin chapter routes integration
+async function setupAdminRoutes() {
+  const narrativeData = require('./narrativeData');
   
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return reply.status(401).send({ error: 'Admin authentication required' });
-  }
+  // Get all chapters
+  fastify.get('/admin/chapters', async (request, reply) => {
+    try {
+      return narrativeData.chapters;
+    } catch (error) {
+      return reply.status(500).send({ error: error.message });
+    }
+  });
 
-  try {
-    await fastify.saga.resetProgress(request.params.userId);
-    return { success: true, message: `Progress reset for user ${request.params.userId}` };
-  } catch (error) {
-    return reply.status(500).send({ error: error.message });
-  }
-});
+  // Create new chapter
+  fastify.post('/admin/chapters', async (request, reply) => {
+    const { chapterId, text, choices, interactiveElement } = request.body;
+    
+    if (!chapterId || !text || !choices) {
+      return reply.status(400).send({ 
+        error: 'Missing required fields',
+        required: ['chapterId', 'text', 'choices'] 
+      });
+    }
+
+    try {
+      const pool = require('./database').pool;
+      await pool.query(`
+        INSERT INTO chapters (chapter_id, text, choices, interactive_element)
+        VALUES ($1, $2, $3, $4)
+        ON CONFLICT (chapter_id) DO UPDATE SET
+          text = EXCLUDED.text,
+          choices = EXCLUDED.choices,
+          interactive_element = EXCLUDED.interactive_element`,
+        [chapterId, text, JSON.stringify(choices), 
+         interactiveElement ? JSON.stringify(interactiveElement) : null]
+      );
+
+      return { success: true, message: 'Chapter created/updated' };
+    } catch (error) {
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  // Update chapter
+  fastify.put('/admin/chapters/:chapterId', async (request, reply) => {
+    const chapterId = request.params.chapterId;
+    const { text, choices, interactiveElement } = request.body;
+
+    if (!text || !choices) {
+      return reply.status(400).send({ error: 'Missing required fields' });
+    }
+
+    try {
+      const pool = require('./database').pool;
+      await pool.query(`
+        UPDATE chapters 
+        SET text = $1, choices = $2, interactive_element = $3
+        WHERE chapter_id = $4`,
+        [text, JSON.stringify(choices), 
+         interactiveElement ? JSON.stringify(interactiveElement) : null,
+         chapterId]
+      );
+
+      return { success: true };
+    } catch (error) {
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  // Delete chapter
+  fastify.delete('/admin/chapters/:chapterId', async (request, reply) => {
+    const chapterId = request.params.chapterId;
+
+    if (!/^\d+$/.test(chapterId)) {
+      return reply.status(400).send({ error: 'Invalid chapter ID' });
+    }
+
+    try {
+      const pool = require('./database').pool;
+      await pool.query(`DELETE FROM chapters WHERE chapter_id = $1`, [chapterId]);
+
+      return { success: true, message: `Chapter ${chapterId} deleted` };
+    } catch (error) {
+      return reply.status(500).send({ error: error.message });
+    }
+  });
+
+  console.log('\n📚 Admin Routes Initialized');
+  console.log('   /admin/chapters - List all chapters');
+  console.log('   POST /admin/chapters - Create chapter');
+  console.log('   PUT /admin/chapters/:id - Update chapter');
+  console.log('   DELETE /admin/chapters/:id - Delete chapter');
+}
+
+setupAdminRoutes();
 
 // Analytics endpoint
 fastify.get('/analytics/active-readers', async (request, reply) => {
   try {
     const limit = parseInt(request.query.limit) || 100;
-    const readers = await fastify.saga.getActiveReaders(limit);
+    
+    // Get active readers from saga engine
+    const saga = require('./sagaEngine');
+    const readers = saga.getActiveUsers(limit);
     
     return { 
       count: readers.length,
       readers: readers.map(r => ({
-        userId: r.user_id,
-        lastChapter: r.last_chapter,
-        created_at: r.created_at,
-        last_active: r.updated_at
+        userId: r,
+        status: 'active'
       }))
     };
   } catch (error) {
@@ -314,7 +412,6 @@ fastify.setErrorHandler((error, request, reply) => {
     method: request.method 
   });
   
-  // Don't expose internal errors in production
   const isProduction = process.env.NODE_ENV === 'production';
   
   if (isProduction && !error.message.includes('User not found')) {

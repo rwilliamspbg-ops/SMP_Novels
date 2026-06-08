@@ -12,7 +12,8 @@
     "health-check": "node -e \"const f=require('./src/database'); f.initializeSchema().then(()=>console.log('DB OK')).catch(e=>console.error(e))\"",
     "init-db": "node -e \"const db=require('./src/database'); db.initializeSchema().then(()=>console.log('Schema initialized')).catch(e=>{console.error(e); process.exit(1)})\"",
     "reset-user": "node -e \\\"const {getReaderProgress} = require('./src/database'); const uid=process.argv[2]||'test-user'; getReaderProgress(uid).then(p=>console.log(JSON.stringify(p,null,2))).catch(e=>console.error(e))\\\"",
-    "migrate": "node ./scripts/migrate.js"
+    "migrate": "node ./scripts/migrate.js",
+    "check-env": "node -e \"const required=['JWT_SECRET','DB_HOST','DB_NAME','DB_USER','DB_PASSWORD','FRONTEND_URL']; require('dotenv').config(); const missing=required.filter(k=>!process.env[k]); if(missing.length){console.error('Missing env vars:',missing.join(', ')); process.exit(1)} else {console.log('All required env vars present')}\""
   },
   "dependencies": {
     "fastify": "^4.26.2",
