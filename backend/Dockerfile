@@ -1,5 +1,4 @@
-# SMP_Novels Backend - Production Dockerfile
-# Fixed: v3.1 (Simple, reliable build)
+# SMP_Novels Backend - Production Dockerfile (v3.3)
 
 FROM node:20-alpine AS builder
 
@@ -50,5 +49,4 @@ EXPOSE 3001
 # Use tini for proper PID 1 handling and signal forwarding
 ENTRYPOINT ["/sbin/tini", "--"]
 
-# Log to stdout/stderr for container logging
 CMD ["node", "src/server_fastify.js"]
