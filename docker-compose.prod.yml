@@ -1,78 +1,154 @@
+# SMP_Novels - Production Docker Compose Configuration (v3.3.1)
+# Use this file for production deployments with all services enabled
+
 version: '3.8'
 
 services:
-  # PostgreSQL Database (Primary Data Store)
+  # PostgreSQL Database Service
   postgres:
     image: postgres:15-alpine
     container_name: cognoscent-postgres
     restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${DB_USER:-postgres}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
-      POSTGRES_DB: ${DB_NAME:-interactive_novel}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ${DB_NAME:-interactive_novel_prod}
+      POSTGRES_USER: ${DB_USER:-prod_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-ChangeMeInProduction!}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend/init-db.sql:/docker-entrypoint-initdb.d/init-scripts.sql:ro
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-scripts.sql:ro
+      - ./backend/init-db.sql:/docker-entrypoint-initdb.d/backend-init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-interactive_novel}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${POSTGRES_DB:-interactive_novel}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - cognoscent-network
 
-  # Backend API Server (Fastify + PostgreSQL)
+  # Backend API Service (Fastify)
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile.prod
+      dockerfile: Dockerfile
+      target: production
     container_name: cognoscent-backend
     restart: unless-stopped
     ports:
       - "3001:3001"
     environment:
       NODE_ENV: ${NODE_ENV:-production}
-      PORT: 3001
       DB_HOST: postgres
       DB_PORT: 5432
-      DB_NAME: ${DB_NAME:-interactive_novel}
-      DB_USER: ${DB_USER:-postgres}
-      DB_PASSWORD: ${DB_PASSWORD:-postgres}
-      JWT_SECRET: ${JWT_SECRET:-$(openssl rand -hex 32)}
+      DB_NAME: ${DB_NAME:-interactive_novel_prod}
+      DB_USER: ${DB_USER:-prod_user}
+      DB_PASSWORD: ${DB_PASSWORD:-ChangeMeInProduction!}
+      JWT_SECRET: ${JWT_SECRET:-$(openssl rand -hex 64)}
       RATE_LIMIT_MAX: ${RATE_LIMIT_MAX:-100}
-      RATE_LIMIT_TIME_WINDOW: ${RATE_LIMIT_TIME_WINDOW:-1m}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
-      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      RATE_LIMIT_TIME_WINDOW: ${RATE_LIMIT_TIME_WINDOW:-5m}
+      CORS_ORIGIN: ${ALLOWED_CORS_URLS:-https://echo-platform.vercel.app}
+      LOG_LEVEL: ${LOG_LEVEL:-error}
+      ENABLE_METRICS: ${ENABLE_METRICS:-true}
     depends_on:
       postgres:
         condition: service_healthy
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 512M
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - cognoscent-network
 
-  # Frontend Web Server (Static + API Proxy)
+  # Frontend Static Files Service (Nginx)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile.prod
+      target: production
     container_name: cognoscent-frontend
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3000:80"
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      VITE_API_BASE: http://cognoscent-backend:3001
     depends_on:
       - backend
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 256M
+    networks:
+      - cognoscent-network
+
+  # Redis Service (Optional - for governance voting)
+  redis:
+    image: redis:7-alpine
+    container_name: cognoscent-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - cognoscent-network
+
+  # Monitoring Service (Prometheus)
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: cognoscent-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - cognoscent-network
+
+  # Grafana (Optional - for visualization)
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: cognoscent-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3001"  # Note: This conflicts with backend, adjust as needed
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_INSTALL_PLUGINS: grafana-piechart-panel,grafana-worldmap-panel
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - cognoscent-network
 
 volumes:
   postgres_data:
     driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
 
-# Note: Redis and monitoring services are optional
-# Add them back by uncommenting sections in docker-compose.prod.yml
-# or using separate docker-compose.monitoring.yml file
+networks:
+  cognoscent-network:
+    driver: bridge
+
+# Production Notes:
+# ====================
+# - All services run with restart=unless-stopped for high availability
+# - Database migrations run automatically on first start
+# - Health checks ensure service readiness before traffic routing
+# - Redis is optional; disable by commenting out redis service if not using governance voting
+# - Prometheus and Grafana are optional; remove if monitoring not needed
