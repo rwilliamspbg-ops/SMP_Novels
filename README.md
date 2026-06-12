@@ -1,4 +1,4 @@
-﻿# 🌌 Cognoscent Echo Interactive Platform
+# 🌌 Cognoscent Echo Interactive Platform
 **An AI-Orchestrated Narrative Experience**
 
 ![Build Status](https://img.shields.io/badge/build-passing-brightgreen)
@@ -7,6 +7,8 @@
 ![Stack](https://img.shields.io/badge/stack-Fastify%20%7C%20React%20%7C%20WASM-orange)
 
 The **Cognoscent Echo Interactive Platform** is a high-fidelity implementation of the *Cognoscent Echo* manuscript. It transforms a traditional novel into a living system where the reader acts as a protocol engineer, a legal arbiter, and a quantum analyst.
+
+https://github.com/user-attachments/assets/8203d8c3-08b0-4812-80cb-42e95b3d15d6
 
 ## 🚀 Core Features
 
