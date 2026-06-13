@@ -1,20 +1,23 @@
 // Cognoscent Echo - Main Application Entry Point
-// Handles narrative loading, state management, and UI interactions
+// Integrates with NavigatorPlayer for narrative loading, state management, and UI interactions
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize application state
-    const appState = {
-        currentChapterId: 1,
-        progress: null,
-        metrics: {
-            throughput: 0,
-            latency: 0,
-            resilience: 0,
-            energy: 0
-        },
-        userId: window.CognoscentBridge?.userId || 'anonymous',
-        unlockedNodes: ['prologue']
-    };
+    // Wait for NavigatorPlayer to be initialized
+    let navigationController = null;
+    const initDelay = setInterval(() => {
+        if (window.navigatorPlayer) {
+            navigationController = window.navigatorPlayer;
+            clearInterval(initDelay);
+        }
+    }, 50);
+
+    // Fallback if NavigatorPlayer doesn't initialize quickly
+    setTimeout(() => {
+        if (!navigationController) {
+            console.warn('[App] NavigatorPlayer not initialized, creating backup');
+            navigationController = window.navigatorPlayer || new window.NavigatorPlayer();
+        }
+    }, 2000);
 
     // DOM Elements
     const elements = {
@@ -33,24 +36,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Initialize metrics display
     function updateMetricsDisplay() {
-        elements.metricThroughput.textContent = appState.metrics.throughput || '-';
-        elements.metricLatency.textContent = appState.metrics.latency || '-';
-        elements.metricResilience.textContent = appState.metrics.resilience || '-';
-        elements.metricEnergy.textContent = appState.metrics.energy || '-';
+        if (!navigationController) return;
+        const metrics = navigationController.metrics;
+        elements.metricThroughput.textContent = Math.round(metrics.throughput) || '-';
+        elements.metricLatency.textContent = Math.round(metrics.latency) + 'ms' || '-';
+        elements.metricResilience.textContent = Math.round(metrics.resilience * 10) / 10 + '%' || '-';
+        elements.metricEnergy.textContent = Math.round(metrics.energy * 10) / 10 + '%' || '-';
     }
 
-    // Load chapter by ID
-    async function loadChapter(chapterId) {
-        try {
-            appState.currentChapterId = chapterId;
-            
-            // Fetch chapter data
-            const chapter = await window.CognoscentBridge.fetchChapter(chapterId);
-            
-            if (!chapter) {
-                throw new Error(`Chapter ${chapterId} not found`);
+    // Setup NavigatorPlayer listeners
+    function setupNavigatorListeners() {
+        if (!navigationController) return;
+
+        // Listen for chapter load events
+        navigationController.on('onChapterLoad', (data) => {
+            if (data.error) {
+                elements.storyText.innerHTML = `
+                    <p style="color: #ff4444; padding: 20px; text-align: center;">
+                        <strong>Error:</strong> ${data.error}
+                    </p>
+                `;
+                return;
             }
 
+            const chapter = data.chapter;
             // Render chapter content
             elements.storyText.innerHTML = renderStoryText(chapter);
             
@@ -67,6 +76,27 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Update metrics display
             updateMetricsDisplay();
 
+            console.log('[App] Chapter loaded and rendered');
+        });
+
+        // Listen for choice made events
+        navigationController.on('onChoiceMade', (data) => {
+            console.log('[App] Choice made, advancing to chapter', data.nextChapterId);
+        });
+
+        // Listen for interactive tool triggers
+        navigationController.on('onInteractiveTriggered', (data) => {
+            console.log('[App] Interactive tool triggered:', data.toolType);
+        });
+    }
+
+    // Load chapter by ID (delegates to NavigatorPlayer)
+    async function loadChapter(chapterId) {
+        try {
+            if (!navigationController) {
+                throw new Error('Navigation controller not initialized');
+            }
+            await navigationController.loadChapter(chapterId);
         } catch (error) {
             console.error('[App] Error loading chapter:', error);
             elements.storyText.innerHTML = `
@@ -157,7 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             container.appendChild(validateBtn);
         });
 
-        zone.appendChild(container);
+        elements.interactiveZone.appendChild(container);
     }
 
     // Render governance vote
@@ -193,7 +223,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 
                 try {
                     const result = await window.CognoscentBridge.recordChoice(
-                        appState.currentChapterId, 
+                        navigationController.userId,
+                        navigationController.currentChapterId, 
                         optionId
                     );
                     
@@ -217,7 +248,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
         });
 
-        zone.appendChild(container);
+        elements.interactiveZone.appendChild(container);
     }
 
     // Render choices buttons
@@ -254,18 +285,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             btn.onclick = async () => {
                 try {
-                    await window.CognoscentBridge.recordChoice(
-                        appState.currentChapterId,
-                        index
-                    );
-                    
-                    // Get next chapter from choice data
-                    const nextChapterId = choice.nextChapter;
-                    if (nextChapterId) {
-                        setTimeout(() => loadChapter(nextChapterId), 1000);
+                    if (!navigationController) {
+                        throw new Error('Navigation controller not initialized');
                     }
+                    await navigationController.makeChoice(index);
                 } catch (error) {
-                    console.error('[App] Error recording choice:', error);
+                    console.error('[App] Error making choice:', error);
                     alert(`Error: ${error.message}`);
                 }
             };
@@ -300,9 +325,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 elements.authContainer.style.display = 'none';
                 elements.adminToggle.style.display = 'block';
                 
-                // Initialize progress for new user
-                appState.progress = await window.CognoscentBridge.getProgress(appState.userId);
-                appState.unlockedNodes = appState.progress?.unlocked_nodes || ['prologue'];
+                // Setup navigator listeners and load initial chapter
+                setupNavigatorListeners();
+                loadChapter(1);
                 
                 console.log('[App] User authenticated:', { username });
             } else {
@@ -336,9 +361,25 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
-    // Load initial chapter
-    loadChapter(1);
+    // Setup error handler for missing elements
+    const missingElements = [];
+    Object.entries(elements).forEach(([key, el]) => {
+        if (!el) {
+            missingElements.push(key);
+            console.warn(`[App] Missing DOM element: ${key}`);
+        }
+    });
+
+    if (missingElements.length > 0) {
+        console.error('[App] Critical DOM elements missing:', missingElements);
+    }
 
     // Export for debugging
-    window.appState = appState;
+    window.appDebug = {
+        navigationController,
+        loadChapter,
+        elements
+    };
+
+    console.log('[App] Cognoscent Echo initialized. Ready for narrative adventure.');
 });

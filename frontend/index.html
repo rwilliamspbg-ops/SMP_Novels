@@ -55,7 +55,15 @@
     </div>
     
     <!-- Application Logic -->
+    <!-- Bridge must load first for API access -->
     <script src="src/bridge.js"></script>
+    <!-- NavigatorPlayer manages story state and navigation -->
+    <script src="src/NavigatorPlayer.js"></script>
+    <!-- CopilotKit agent integration for AI-driven actions -->
+    <script src="src/CopilotAgentController.js"></script>
+    <!-- AI navigation bridge for event dispatch -->
+    <script src="src/ai_nav_bridge.js"></script>
+    <!-- Main application logic -->
     <script src="src/main.js"></script>
 </body>
 </html>
