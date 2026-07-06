@@ -1,41 +1,42 @@
-# 🚀 Cognoscent Echo - Deployment Guide
+﻿# 🚀 Deployment & Production Manifest
+**Cognoscent Echo Interactive Platform v1.0.0**
 
-## 🐳 Docker Deployment (Recommended)
-The platform is fully containerized using Docker Compose.
+## 🏗️ Architecture
+The platform is split into a **State-Driven Backend** and a **Cinematic Frontend**.
 
+### Backend (API Layer)
+- **Runtime:** Fastify (Node.js)
+- **Key Modules:**
+  - `sagaEngine.js`: Manages reader progress and narrative branching.
+  - `aiEngine.js`: Memory-aware dialogue generation.
+  - `governanceData.js`: Global state for the Dissent Vote.
+  - `epilogues.js`: Final world-state resolutions.
+
+### Frontend (Experience Layer)
+- **Runtime:** React-Bridge (Vanilla JS + React Components).
+- **Core Utilities:**
+  - `bridge.js`: API communication layer.
+  - `cinematics.js`: Manages sound and glitch effects.
+  - `interactiveElements.js`: Root registry for all puzzle modules.
+
+## 🌐 Deployment Strategy
+
+### 1. Backend (Fly.io)
+- **Target:** `fly.io` (Region: ams / nyc)
+- **Command:** `fly deploy`
+- **Environment Variables:**
+  - `PORT=3001`
+  - `AI_API_KEY=...` (For production LLM integration)
+
+### 2. Frontend (Vercel)
+- **Target:** `vercel.com`
+- **Build Command:** `npm run build` (if using React build step)
+- **Environment Variables:**
+  - `VITE_API_BASE=https://echo-api.fly.dev`
+
+## 🛠️ Maintenance & Audit
+To verify narrative integrity after adding new chapters:
 ```bash
-# Start all services (PostgreSQL, Backend, Frontend)
-docker-compose up -d --build
+node backend/src/audit_narrative.js
 ```
-
-### Services
-- **Frontend:** http://localhost:3000
-- **Backend API:** http://localhost:3001
-- **Database:** PostgreSQL on port 5432
-
-## 🛠️ Manual Setup
-
-### 1. Database (PostgreSQL)
-1. Install PostgreSQL 15+.
-2. Create database `interactive_novel`.
-3. Run `backend/init-db.sql` to initialize schema.
-
-### 2. Backend
-```bash
-cd backend
-npm install
-node src/server_fastify.js
-```
-
-### 3. Frontend
-```bash
-cd frontend
-npm install
-node server.js
-```
-
-## ⚙️ Environment Variables
-Copy `.env.example` to `.env` and configure as needed.
-
----
-*Last Updated: v3.3 Consolidation*
+This script ensures no "dead-ends" exist and all chapters are reachable from the prologue.

@@ -1,4 +1,4 @@
-﻿const sagaEngine = require('./sagaEngine');
+﻿const sagaEngine = require('./sagaEngine_pg');
 const aiEngine = require('./aiEngine');
 
 async function runEdgeCaseTests() {
@@ -35,7 +35,7 @@ async function runEdgeCaseTests() {
     }
 
     // 4. Test: Governance Vote Spoofing
-    const govStore = require('./governanceStore');
+    const govStore = require('./governanceStore_redis');
     console.log('\nTesting Vote Spoofing (Double Voting)...');
     try {
         await govStore.recordVote('G-2029-088', 'purge', userId);

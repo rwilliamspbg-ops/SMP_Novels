@@ -20,10 +20,10 @@ jobs:
 
       - name: Prepare backend .env
         run: |
-          if [ -f backend/.env.example ]; then
-            cp backend/.env.example backend/.env
+          if [ -f .env.example ]; then
+            cp .env.example backend/.env
           else
-            echo "backend/.env.example not found" && exit 1
+            echo ".env.example not found" && exit 1
           fi
           # Inject safe dummy values for required keys so check-env passes
           for k in JWT_SECRET DB_PASSWORD DB_HOST DB_NAME DB_USER FRONTEND_URL; do

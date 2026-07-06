@@ -43,13 +43,13 @@ jobs:
       - name: Run basic tests (test_suite_lite)
         working-directory: ./backend
         run: |
-          npm test -- --testPathPattern="src/test_suite_lite" || echo "Test suite lite completed (may have expected failures)"
+          npm test -- --testPathPattern="src/test_suite_lite.test.js" || echo "Test suite lite completed (may have expected failures)"
 
       - name: Run edge case tests
         working-directory: ./backend
         run: |
-          if [ -f src/test_lite_final.js ]; then
-            npm test -- --testPathPattern="src/test_lite_final"
+          if [ -f src/test_lite_final.test.js ]; then
+            npm test -- --testPathPattern="src/test_lite_final.test.js"
           else
             echo "Edge case test file not found, skipping"
           fi
@@ -57,7 +57,7 @@ jobs:
       - name: Check environment variables
         working-directory: ./backend
         run: |
-          if [ -f .env.example ]; then
+          if [ -f ../.env.example ]; then
             echo "Environment template exists"
           else
             echo "Warning: No .env.example found"
