@@ -237,7 +237,7 @@ fastify.get('/governance/tally/:proposalId', async (request, reply) => {
       return reply.status(400).send({ error: 'Missing proposal ID' });
     }
     
-    const govStore = require('./governanceStore_redis');
+    const govStore = require('./governanceStore');
     const tally = await govStore.getTally(proposalId);
     return { proposalId, currentTally: tally };
   } catch (error) {
@@ -257,7 +257,7 @@ fastify.post('/governance/vote', async (request, reply) => {
   }
 
   try {
-    const govStore = require('./governanceStore_redis');
+    const govStore = require('./governanceStore');
     const tally = await govStore.recordVote(proposalId, parseInt(optionId), userId);
     return { success: true, currentTally: tally };
   } catch (error) {
@@ -278,7 +278,7 @@ fastify.post('/metrics', async (request, reply) => {
     }
     
     // Save metrics to database
-    await fastify.database.saveMetrics(userId, metrics);
+    await require("./sagaEngine").saveMetrics(userId, metrics);
     
     return { success: true, message: 'Metrics recorded successfully' };
   } catch (error) {
@@ -287,100 +287,8 @@ fastify.post('/metrics', async (request, reply) => {
 });
 
 // Admin chapter routes integration
-async function setupAdminRoutes() {
-  const narrativeData = require('./narrativeData');
-  
-  // Get all chapters
-  fastify.get('/admin/chapters', async (request, reply) => {
-    try {
-      return narrativeData.chapters;
-    } catch (error) {
-      return reply.status(500).send({ error: error.message });
-    }
-  });
-
-  // Create new chapter
-  fastify.post('/admin/chapters', async (request, reply) => {
-    const { chapterId, text, choices, interactiveElement } = request.body;
-    
-    if (!chapterId || !text || !choices) {
-      return reply.status(400).send({ 
-        error: 'Missing required fields',
-        required: ['chapterId', 'text', 'choices'] 
-      });
-    }
-
-    try {
-      const pool = require('./database').pool;
-      await pool.query(`
-        INSERT INTO chapters (chapter_id, text, choices, interactive_element)
-        VALUES ($1, $2, $3, $4)
-        ON CONFLICT (chapter_id) DO UPDATE SET
-          text = EXCLUDED.text,
-          choices = EXCLUDED.choices,
-          interactive_element = EXCLUDED.interactive_element`,
-        [chapterId, text, JSON.stringify(choices), 
-         interactiveElement ? JSON.stringify(interactiveElement) : null]
-      );
-
-      return { success: true, message: 'Chapter created/updated' };
-    } catch (error) {
-      return reply.status(500).send({ error: error.message });
-    }
-  });
-
-  // Update chapter
-  fastify.put('/admin/chapters/:chapterId', async (request, reply) => {
-    const chapterId = request.params.chapterId;
-    const { text, choices, interactiveElement } = request.body;
-
-    if (!text || !choices) {
-      return reply.status(400).send({ error: 'Missing required fields' });
-    }
-
-    try {
-      const pool = require('./database').pool;
-      await pool.query(`
-        UPDATE chapters 
-        SET text = $1, choices = $2, interactive_element = $3
-        WHERE chapter_id = $4`,
-        [text, JSON.stringify(choices), 
-         interactiveElement ? JSON.stringify(interactiveElement) : null,
-         chapterId]
-      );
-
-      return { success: true };
-    } catch (error) {
-      return reply.status(500).send({ error: error.message });
-    }
-  });
-
-  // Delete chapter
-  fastify.delete('/admin/chapters/:chapterId', async (request, reply) => {
-    const chapterId = request.params.chapterId;
-
-    if (!/^\d+$/.test(chapterId)) {
-      return reply.status(400).send({ error: 'Invalid chapter ID' });
-    }
-
-    try {
-      const pool = require('./database').pool;
-      await pool.query(`DELETE FROM chapters WHERE chapter_id = $1`, [chapterId]);
-
-      return { success: true, message: `Chapter ${chapterId} deleted` };
-    } catch (error) {
-      return reply.status(500).send({ error: error.message });
-    }
-  });
-
-  console.log('\n📚 Admin Routes Initialized');
-  console.log('   /admin/chapters - List all chapters');
-  console.log('   POST /admin/chapters - Create chapter');
-  console.log('   PUT /admin/chapters/:id - Update chapter');
-  console.log('   DELETE /admin/chapters/:id - Delete chapter');
-}
-
-setupAdminRoutes();
+const { setupAdminRoutes } = require("./admin_routes");
+setupAdminRoutes(fastify);
 
 // Analytics endpoint
 fastify.get('/analytics/active-readers', async (request, reply) => {

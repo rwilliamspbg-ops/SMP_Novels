@@ -91,7 +91,7 @@ async function getReaderProgress(userId) {
     if (result.rows.length > 0) {
       const progress = result.rows[0];
       await client.release();
-      return JSON.parse(progress.decisions_made || '{}');
+      return { currentChapter: progress.current_chapter, decisions_made: progress.decisions_made, branch_selections: progress.branch_selections, metrics: progress.metrics, unlocked_nodes: progress.unlocked_nodes };
     }
 
     // Create new progress record within transaction

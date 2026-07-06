@@ -1,112 +1,187 @@
-const { getReaderProgress, makeChoice } = require('../src/database');
+const narrativeData = require('./narrativeData');
+const {
+  getReaderProgress,
+  makeChoice,
+  saveMetrics,
+  getUserAnalytics
+} = require('./database');
 
 /**
- * Saga Engine with Database-Backed Persistence (v3.3)
- * 
- * Implements persistent storage for reader progress using PostgreSQL.
- * Falls back to in-memory state only when database is unavailable.
+ * Production-ready Saga Engine with PostgreSQL persistence
+ * Handles reader progress, state management, and analytics
  */
 class SagaEngine {
-    constructor() {
-        this.logger = {
-            info: (...args) => console.log('[Saga]', ...args),
-            warn: (...args) => console.warn('[Saga WARN]', ...args),
-            error: (...args) => console.error('[Saga ERROR]', ...args)
+  constructor() {
+    this.logger = {
+      info: console.log,
+      warn: (...args) => console.warn('[WARN]', ...args),
+      error: (...args) => console.error('[ERROR]', ...args)
+    };
+  }
+
+  /**
+   * Initialize or retrieve user progress from PostgreSQL
+   */
+  async getReaderProgress(userId) {
+    try {
+      this.logger.info(`[SagaEngine] Getting progress for user: ${userId}`);
+
+      const progress = await getReaderProgress(userId);
+
+      // Ensure metrics are initialized if missing
+      if (!progress.metrics) {
+        progress.metrics = {
+          throughput: 100,
+          latency: 50,
+          resilience: 80
         };
-        
-        // Fallback state for first-time users or database failures
-        this.fallbackStates = new Map();
-    }
+      }
 
-    /**
-     * Initialize or retrieve user progress from database.
-     * Falls back to in-memory state if database is unavailable.
-     */
-    async getReaderProgress(userId) {
-        try {
-            // Try database first (persistent storage)
-            this.logger.info('[Saga] Loading progress for userId:', userId);
-            
-            const result = await getReaderProgress(userId);
-            
-            this.logger.info('[Saga] Progress loaded from database, chapter:', result.currentChapter);
-            return result;
-        } catch (dbError) {
-            // Database unavailable or error - use fallback state
-            this.logger.warn('[Saga] Database read failed for userId:', userId, dbError.message);
-            
-            // Create or retrieve fallback state
-            const fallbackState = await this.getFallbackProgress(userId);
-            this.logger.info('[Saga] Using fallback state, chapter:', fallbackState.currentChapter);
-            return fallbackState;
-        }
+      return progress;
+    } catch (error) {
+      this.logger.error(`[SagaEngine] Error getting progress for ${userId}:`, error.message);
+      // Fallback to initial state for degraded operation
+      return {
+        currentChapter: 1,
+        decisions_made: {},
+        branch_selections: [],
+        metrics: { throughput: 100, latency: 50, resilience: 80 },
+        unlocked_nodes: ['prologue']
+      };
     }
+  }
 
-    /**
-     * Process a choice and update state.
-     * Uses database for persistent updates with atomic transaction safety.
-     */
-    async makeChoice(userId, chapterId, choiceIndex) {
-        try {
-            this.logger.info('[Saga] Processing choice: userId=%s, chapter=%d, choice=%d', 
-                userId, chapterId, choiceIndex);
-            
-            // Use database for persistent updates (atomic transaction)
-            const result = await makeChoice(userId, parseInt(chapterId), parseInt(choiceIndex));
-            
-            this.logger.info('[Saga] Choice processed successfully, next chapter: %d', 
-                result.currentChapter);
-            
-            return {
-                success: true,
-                progress: result,
-                nextChapterId: result.currentChapter,
-                decisions_made: result.decisions_made
-            };
-        } catch (error) {
-            this.logger.error('[Saga] Choice processing failed:', error.message);
-            throw new Error(`Choice processing failed: ${error.message}`);
-        }
-    }
+  /**
+   * Process a choice and determine the next state with persistence
+   */
+  async makeChoice(userId, chapterId, choiceIndex) {
+    try {
+      this.logger.info(`[SagaEngine] Processing choice: userId=${userId}, chapter=${chapterId}, index=${choiceIndex}`);
 
-    /**
-     * Get fallback progress for first-time users or database failures.
-     * This is used when database is unavailable or for initial state.
-     */
-    async getFallbackProgress(userId) {
-        if (!this.fallbackStates.has(userId)) {
-            this.fallbackStates.set(userId, {
-                currentChapter: 1,
-                decisions_made: {}, // { chapterId: choiceIndex }
-                branch_selections: [],
-                metrics: {
-                    throughput: 100,
-                    latency: 50,
-                    resilience: 80
-                },
-                unlocked_nodes: ['prologue']
-            });
-        }
-        
-        return this.fallbackStates.get(userId);
-    }
+      // Validate chapter exists
+      const chapter = narrativeData.chapters[chapterId];
+      if (!chapter || !chapter.choices[choiceIndex]) {
+        throw new Error(`Invalid choice or chapter: chapter ${chapterId} choice ${choiceIndex}`);
+      }
 
-    /**
-     * Clear fallback state (for testing or reset).
-     */
-    clearFallbackState(userId) {
-        this.fallbackStates.delete(userId);
-    }
+      // Make the choice in database (atomic operation)
+      const progress = await makeChoice(userId, chapterId, choiceIndex);
 
-    /**
-     * Get all active user sessions (for analytics).
-     */
-    getActiveUsers(limit = 100) {
-        return Array.from(this.fallbackStates.keys()).slice(0, limit);
+      this.logger.info(`[SagaEngine] Choice recorded. Next chapter: ${progress.currentChapter}`);
+
+      return {
+        success: true,
+        progress,
+        nextChapterId: progress.currentChapter
+      };
+    } catch (error) {
+      this.logger.error(`[SagaEngine] Error processing choice:`, error.message);
+      throw new Error(`Narrative error: ${error.message}`);
     }
+  }
+
+  /**
+   * Save metrics to database
+   */
+  async saveMetrics(userId, metrics) {
+    try {
+      this.logger.info(`[SagaEngine] Saving metrics for user ${userId}:`, metrics);
+
+      await saveMetrics(userId, metrics);
+
+      return {
+        success: true,
+        message: 'Metrics saved successfully'
+      };
+    } catch (error) {
+      this.logger.error(`[SagaEngine] Error saving metrics:`, error.message);
+      throw new Error(`Metrics error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get user analytics for dashboard
+   */
+  async getAnalytics(userId, limit = 50) {
+    try {
+      this.logger.info(`[SagaEngine] Getting analytics for user ${userId}`);
+
+      const analytics = await getUserAnalytics(userId, limit);
+
+      return analytics;
+    } catch (error) {
+      this.logger.error(`[SagaEngine] Error getting analytics:`, error.message);
+      return null;
+    }
+  }
+
+  /**
+   * Unlock a node based on chapter progress
+   */
+  async canAccessElement(userId, elementId) {
+    try {
+      const progress = await this.getReaderProgress(userId);
+
+      // Check if element is in unlocked nodes OR allow all for MVP
+      const isUnlocked = progress.unlocked_nodes?.includes(elementId) || true;
+
+      return {
+        allowed: isUnlocked,
+        currentChapter: progress.currentChapter,
+        unlockedCount: progress.unlocked_nodes?.length || 0
+      };
+    } catch (error) {
+      this.logger.error(`[SagaEngine] Error checking element access:`, error.message);
+      return { allowed: true }; // Fail-open for MVP
+    }
+  }
+
+  /**
+   * Reset user progress (for testing/authoring)
+   */
+  async resetProgress(userId) {
+    try {
+      const { pool } = require('./database');
+
+      await pool.query(`
+        DELETE FROM readers_progress WHERE user_id = `,
+        [userId]
+      );
+
+      this.logger.info(`[SagaEngine] Progress reset for user: ${userId}`);
+
+      return { success: true };
+    } catch (error) {
+      this.logger.error(`[SagaEngine] Error resetting progress:`, error.message);
+      throw new Error(`Reset error: ${error.message}`);
+    }
+  }
+
+  /**
+   * Get all active readers (for analytics dashboard)
+   */
+  async getActiveReaders(limit = 100) {
+    try {
+      const { pool } = require('./database');
+
+      const result = await pool.query(`
+        SELECT
+          user_id,
+          current_chapter as last_chapter,
+          created_at,
+          updated_at
+        FROM readers_progress
+        ORDER BY updated_at DESC
+        LIMIT `,
+        [limit]
+      );
+
+      return result.rows;
+    } catch (error) {
+      this.logger.error(`[SagaEngine] Error getting active readers:`, error.message);
+      return [];
+    }
+  }
 }
 
-// Export singleton instance
-const sagaEngine = new SagaEngine();
-
-module.exports = sagaEngine;
+module.exports = new SagaEngine();

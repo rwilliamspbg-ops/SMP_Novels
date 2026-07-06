@@ -311,7 +311,7 @@ async function setupAdminRoutes(server) {
     // ========================================================================
     server.get('/governance/proposals', async (request, reply) => {
         try {
-            const govStore = require('./governanceStore_redis');
+            const govStore = require('./governanceStore');
             const proposals = govStore.getActiveProposals();
 
             return {
