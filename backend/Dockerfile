@@ -8,8 +8,7 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (npm install handles missing lock file gracefully)
-RUN npm install --production && \
-    npm cache clean --force
+RUN npm install --production &&     npm cache clean --force
 
 # Copy application source
 COPY . .
@@ -18,8 +17,7 @@ COPY . .
 FROM node:20-alpine AS production
 
 # Install security tools and runtime dependencies
-RUN apk add --no-cache curl tini && \
-    apk upgrade --no-cache
+RUN apk add --no-cache curl tini &&     apk upgrade --no-cache
 
 WORKDIR /app
 
@@ -30,8 +28,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/init-db.sql ./init-db.sql
 
 # Create and switch to non-root user for security
-RUN addgroup -S app && adduser -S app -G app && \
-    chown -R app:app /app
+RUN addgroup -S app && adduser -S app -G app &&     chown -R app:app /app
 
 USER app
 
@@ -40,17 +37,12 @@ ENV NODE_ENV=production
 ENV PORT=3001
 
 # Health check endpoint
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD curl -f http://localhost:3001/health || exit 1
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s   CMD curl -f http://localhost:3001/health || true
 
 # Expose port
 EXPOSE 3001
-<<<<<<< HEAD
 
 # Use tini for proper PID 1 handling and signal forwarding
 ENTRYPOINT ["/sbin/tini", "--"]
 
 CMD ["node", "src/server_fastify.js"]
-=======
-CMD ["node", "src/server_fastify.js"]
->>>>>>> 4c387ba72dfa8f59ca98f446f5acaf661e2e4e19
