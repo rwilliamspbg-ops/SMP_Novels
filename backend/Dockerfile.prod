@@ -1,57 +1,18 @@
-# SMP_Novels Backend - Production Dockerfile
-# Upgraded: v2.0 (Multi-stage, Security Hardened, Read-only FS Support)
-
-# syntax=docker/dockerfile:1
+# SMP_Novels Backend - Production Dockerfile (v3.3)
 FROM node:20-alpine AS builder
-
 WORKDIR /app
-
-# Copy dependency files first for layer caching
 COPY package*.json ./
-
-# Install all dependencies (including dev) for building
-RUN npm ci && \
-    npm cache clean --force
-
-# Copy application source
+RUN npm install --omit=dev
 COPY . .
 
-# Build the application if needed (e.g., TypeScript compilation)
-# RUN npm run build
-
-# Production stage - Security Hardened
 FROM node:20-alpine AS production
-
-# Install security tools and runtime dependencies
-RUN apk add --no-cache curl tini && \
-    apk upgrade --no-cache
-
+RUN apk add --no-cache curl tini && apk upgrade --no-cache
 WORKDIR /app
-
-# Copy production dependencies from builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/src ./src
-COPY --from=builder /app/package*.json ./
-
-# Create and switch to non-root user for security
-RUN addgroup -S app && adduser -S app -G app && \
-    chown -R app:app /app
-
-USER app
-
-# Set production environment
+COPY --from=builder --chown=node:node /app .
+USER node
 ENV NODE_ENV=production
 ENV PORT=3001
-
-# Health check endpoint
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s \
-  CMD curl -f http://localhost:3001/ping || exit 1
-
-# Expose port
+HEALTHCHECK --interval=30s --timeout=3s --start-period=40s CMD curl -f http://localhost:3001/health || true
 EXPOSE 3001
-
-# Use tini for proper PID 1 handling and signal forwarding
 ENTRYPOINT ["/sbin/tini", "--"]
-
-# Log to stdout/stderr for container logging
-CMD ["node", "--enable-source-maps", "src/server_fastify.js"]
+CMD ["node", "src/server_fastify.js"]

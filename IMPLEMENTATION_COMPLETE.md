@@ -295,6 +295,6 @@ Or check the GitHub repository: [rwilliamspbg-ops/InteractiveNovelDemo](https://
 
 ---
 
-**Status:** ✅ Production Ready  
-**Version:** 1.0.0  
+**Status:** ✅ Production Ready
+**Version:** 1.0.0
 **Last Updated:** January 2024

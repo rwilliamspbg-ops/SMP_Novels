@@ -1,25 +1,17 @@
-<<<<<<< HEAD
-# Production Frontend - Static Files with Nginx (SMP_Novels)
-=======
-# Production Frontend - Static Files with Nginx
->>>>>>> 4c387ba72dfa8f59ca98f446f5acaf661e2e4e19
-FROM nginx:alpine
+# SMP_Novels Frontend - Production Dockerfile (v3.3)
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm install --omit=dev
+COPY . .
 
-# Copy static files directly (no build step needed for vanilla JS)
-COPY index.html /usr/share/nginx/html/
-COPY src/ /usr/share/nginx/html/src/
-
-# Create non-root user for security
-RUN addgroup -S app && adduser -S app -G app && \
-    chown -R app:app /app
-
-USER app
-
-# Expose port
-EXPOSE 80
-
-# Use tini for proper PID 1 handling and signal forwarding
+FROM node:20-alpine AS production
+RUN apk add --no-cache curl tini && apk upgrade --no-cache
+WORKDIR /app
+COPY --from=builder --chown=node:node /app .
+USER node
+ENV NODE_ENV=production
+ENV PORT=3000
+EXPOSE 3000
 ENTRYPOINT ["/sbin/tini", "--"]
-
-# Serve static files with Nginx (no need for Node.js HTTP server)
-CMD ["nginx", "-g", "daemon off;"]
+CMD ["node", "server.js"]

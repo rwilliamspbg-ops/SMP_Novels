@@ -2,7 +2,7 @@ const { getReaderProgress, makeChoice } = require('../src/database');
 
 /**
  * Saga Engine with Database-Backed Persistence (v3.3)
- * 
+ *
  * Implements persistent storage for reader progress using PostgreSQL.
  * Falls back to in-memory state only when database is unavailable.
  */
@@ -13,7 +13,7 @@ class SagaEngine {
             warn: (...args) => console.warn('[Saga WARN]', ...args),
             error: (...args) => console.error('[Saga ERROR]', ...args)
         };
-        
+
         // Fallback state for first-time users or database failures
         this.fallbackStates = new Map();
     }
@@ -26,15 +26,15 @@ class SagaEngine {
         try {
             // Try database first (persistent storage)
             this.logger.info('[Saga] Loading progress for userId:', userId);
-            
+
             const result = await getReaderProgress(userId);
-            
+
             this.logger.info('[Saga] Progress loaded from database, chapter:', result.currentChapter);
             return result;
         } catch (dbError) {
             // Database unavailable or error - use fallback state
             this.logger.warn('[Saga] Database read failed for userId:', userId, dbError.message);
-            
+
             // Create or retrieve fallback state
             const fallbackState = await this.getFallbackProgress(userId);
             this.logger.info('[Saga] Using fallback state, chapter:', fallbackState.currentChapter);
@@ -48,15 +48,15 @@ class SagaEngine {
      */
     async makeChoice(userId, chapterId, choiceIndex) {
         try {
-            this.logger.info('[Saga] Processing choice: userId=%s, chapter=%d, choice=%d', 
+            this.logger.info('[Saga] Processing choice: userId=%s, chapter=%d, choice=%d',
                 userId, chapterId, choiceIndex);
-            
+
             // Use database for persistent updates (atomic transaction)
             const result = await makeChoice(userId, parseInt(chapterId), parseInt(choiceIndex));
-            
-            this.logger.info('[Saga] Choice processed successfully, next chapter: %d', 
+
+            this.logger.info('[Saga] Choice processed successfully, next chapter: %d',
                 result.currentChapter);
-            
+
             return {
                 success: true,
                 progress: result,
@@ -87,7 +87,7 @@ class SagaEngine {
                 unlocked_nodes: ['prologue']
             });
         }
-        
+
         return this.fallbackStates.get(userId);
     }
 

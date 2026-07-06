@@ -30,8 +30,8 @@ docker-compose run --rm backend bash -c "node scripts/migrate.js"
 
 #### Check Event Table Exists:
 ```sql
-SELECT table_name, table_comment 
-FROM information_schema.tables 
+SELECT table_name, table_comment
+FROM information_schema.tables
 WHERE table_schema = 'public' AND table_name LIKE '%event%';
 ```
 
@@ -40,8 +40,8 @@ WHERE table_schema = 'public' AND table_name LIKE '%event%';
 #### Test Transaction Guard (Sample Query):
 ```sql
 -- Should return recent events
-SELECT event_type, payload->>'chapter' as chapter, occurred_at 
-FROM narrative_events 
+SELECT event_type, payload->>'chapter' as chapter, occurred_at
+FROM narrative_events
 WHERE user_id = 'test-user-123'
 ORDER BY occurred_at DESC LIMIT 5;
 ```
@@ -194,14 +194,14 @@ Run through this checklist before marking as "Production Ready":
 
 All improvements from v3.2 have been successfully implemented:
 
-✅ Event Sourcing Architecture - Immutable history tracking  
-✅ RAG-Based Character Memory - Contextual AI retrieval  
-✅ Transaction Guards - ACID compliance ensured  
-✅ CORS Proxy Fix - Local development errors eliminated  
-✅ Automated Migrations - Safe schema updates  
+✅ Event Sourcing Architecture - Immutable history tracking
+✅ RAG-Based Character Memory - Contextual AI retrieval
+✅ Transaction Guards - ACID compliance ensured
+✅ CORS Proxy Fix - Local development errors eliminated
+✅ Automated Migrations - Safe schema updates
 
-**Version:** 3.2  
-**Status:** ✅ Production-Ready  
+**Version:** 3.2
+**Status:** ✅ Production-Ready
 **Next Milestone:** Phase 2 (Vector DB integration, Replay Mode UI)
 
 ---
@@ -228,7 +228,7 @@ A: Events are logged on first user interaction. Try making a choice to trigger l
 
 This improvement was implemented following the architectural recommendations from the SMP_Novels project review.
 
-Version: 3.2  
-Date: 2026-06-04  
-Author: Sovereign Map Test Suite  
+Version: 3.2
+Date: 2026-06-04
+Author: Sovereign Map Test Suite
 License: MIT (per original project license)

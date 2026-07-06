@@ -1,8 +1,8 @@
 # 🚀 Cognoscent Echo Interactive Platform - Production Ready
 
-**Version:** 1.0.0-Production  
-**Stack:** Fastify API | PostgreSQL | Nginx Frontend  
-**License:** MIT  
+**Version:** 1.0.0-Production
+**Stack:** Fastify API | PostgreSQL | Nginx Frontend
+**License:** MIT
 
 ---
 

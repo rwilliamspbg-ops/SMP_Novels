@@ -1,8 +1,8 @@
 # Docker Infrastructure Evaluation: Upgrades & Extras
 
-**Project:** SMP_Novels (Interactive Novel Platform)  
-**Date:** $(date)  
-**Evaluator:** Docker Infrastructure Review  
+**Project:** SMP_Novels (Interactive Novel Platform)
+**Date:** $(date)
+**Evaluator:** Docker Infrastructure Review
 
 ---
 
@@ -196,17 +196,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      
+
       - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
@@ -403,6 +403,6 @@ docker compose up --health
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** $(date)  
+**Document Version:** 1.0
+**Last Updated:** $(date)
 **Next Review:** 3 months from date

@@ -130,7 +130,7 @@ class GovernanceStore {
         try {
             const client = await pool.connect();
             const result = await client.query(`
-                SELECT proposal_id, title, description, status, 
+                SELECT proposal_id, title, description, status,
                        options as option_json
                 FROM governance_proposals
                 WHERE status = 'active'
@@ -216,11 +216,11 @@ async function setupAdminRoutes(server) {
     // Create new chapter
     server.post('/chapters', async (request, reply) => {
         const { chapterId, text, choices, interactiveElement } = request.body;
-        
+
         if (!chapterId || !text || !choices) {
-            return reply.status(400).send({ 
+            return reply.status(400).send({
                 error: 'Missing required fields',
-                required: ['chapterId', 'text', 'choices'] 
+                required: ['chapterId', 'text', 'choices']
             });
         }
 
@@ -234,7 +234,7 @@ async function setupAdminRoutes(server) {
                     text = EXCLUDED.text,
                     choices = EXCLUDED.choices,
                     interactive_element = EXCLUDED.interactive_element`,
-                [chapterId, text, JSON.stringify(choices), 
+                [chapterId, text, JSON.stringify(choices),
                  interactiveElement ? JSON.stringify(interactiveElement) : null]
             );
             client.release();
@@ -254,10 +254,10 @@ async function setupAdminRoutes(server) {
         try {
             const client = await pool.connect();
             await client.query(`
-                UPDATE chapters 
+                UPDATE chapters
                 SET text = $1, choices = $2, interactive_element = $3
                 WHERE chapter_id = $4`,
-                [text, JSON.stringify(choices), 
+                [text, JSON.stringify(choices),
                  interactiveElement ? JSON.stringify(interactiveElement) : null,
                  chapterId]
             );
@@ -287,14 +287,14 @@ async function setupAdminRoutes(server) {
     // Get chapter by ID
     server.get('/chapters/:chapterId', async (request, reply) => {
         const chapterId = request.params.chapterId;
-        
+
         if (!/^\d+$/.test(chapterId)) {
             return reply.status(400).send({ error: 'Chapter ID must be a positive integer' });
         }
 
         const chapter = narrativeData.chapters[chapterId];
         if (!chapter) {
-            return reply.status(404).send({ error: 'Chapter not found', 
+            return reply.status(404).send({ error: 'Chapter not found',
                 availableChapters: Object.keys(narrativeData.chapters).join(', ') });
         }
 
@@ -407,7 +407,7 @@ async function runSmokeTests() {
     }
 
     console.log(`\n📊 Results: ${passed} passed, ${failed} failed`);
-    
+
     return failed === 0;
 }
 
@@ -448,7 +448,7 @@ fastify.setLogger(pino({
 // Use structured logging in routes
 fastify.post('/choice', async (request, reply) => {
   const startTime = Date.now();
-  
+
   try {
     fastify.info('[API] Processing choice for userId:', request.body.userId);
     // ... existing logic
@@ -500,7 +500,7 @@ Add to `docker-compose.yml`:
 volumes:
   postgres_data:
   postgres_backups: # New volume for backups
-  
+
 # Add cron job for automated backups
 services:
   postgres:
@@ -521,7 +521,7 @@ backup:
 **Impact:** Automated data protection and recovery
 
 #### B. Environment-Specific Configuration
-**Files to create:** 
+**Files to create:**
 - `backend/.env.production`
 - `frontend/.env.production`
 
@@ -583,7 +583,7 @@ See PostgreSQL docs for WAL-based recovery.
 
 ### Week 1: Core Persistence (Must Have)
 - [ ] SagaEngine database persistence
-- [ ] GovernanceStore database integration  
+- [ ] GovernanceStore database integration
 - [ ] Chapter CRUD endpoints
 - [ ] Database migration scripts
 
@@ -626,12 +626,12 @@ The next set of improvements focuses on:
 
 These improvements will transform SMP_Novels from a prototype demo into a production-ready interactive narrative platform with proper data persistence, error handling, and operational procedures.
 
-**Estimated Effort:** 15-20 hours total  
-**Risk Reduction:** Significantly lowers risk of data loss and feature gaps  
-**User Impact:** Enables reliable long-term gameplay sessions  
+**Estimated Effort:** 15-20 hours total
+**Risk Reduction:** Significantly lowers risk of data loss and feature gaps
+**User Impact:** Enables reliable long-term gameplay sessions
 
 ---
 
-**Version:** 3.3 Planning  
-**Status:** Ready for implementation  
+**Version:** 3.3 Planning
+**Status:** Ready for implementation
 **Next Review:** After Week 1 completion

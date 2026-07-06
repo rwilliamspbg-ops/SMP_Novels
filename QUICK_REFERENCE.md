@@ -1,7 +1,7 @@
 # 🚀 Quick Reference - Key Gaps Fixed
 
-**Status**: All major blockers addressed  
-**Scorecard Rating**: 65% (accurate)  
+**Status**: All major blockers addressed
+**Scorecard Rating**: 65% (accurate)
 **Path to 80%**: 2-3 days
 
 ---
@@ -15,7 +15,7 @@ POST /content/update   - Create/Update chapters
 GET  /content/list     - List all chapters
 DELETE /content/delete/:id  - Remove chapters (admin-only)
 ```
-**File**: `backend/src/admin_routes.js`  
+**File**: `backend/src/admin_routes.js`
 **Status**: Fully implemented, integrated in server.js
 
 ---
@@ -46,7 +46,7 @@ backend/src/authMiddleware.js    - Auth/rate limiting utilities
 # MongoDB seed script
 node backend/scripts/seed.js
 ```
-**File**: `backend/scripts/seed.js`  
+**File**: `backend/scripts/seed.js`
 **Status**: Run once to initialize data, wire with startup sequence
 
 ---
@@ -163,18 +163,18 @@ Before considering production-ready:
 
 ### Common Issues:
 
-**Admin routes 401 Unauthorized**: 
+**Admin routes 401 Unauthorized**:
 ```bash
 # Verify JWT_SECRET is set in .env and matches token generation
 ```
 
-**CI/CD tests failing**: 
+**CI/CD tests failing**:
 ```bash
 # Review GitHub Actions logs for specific test failures
 npm test  # Run tests locally to debug
 ```
 
-**MongoDB connection errors**: 
+**MongoDB connection errors**:
 ```bash
 # Check MONGODB_URI in .env
 mongosh --eval "db.adminCommand('ping')"  # Verify connection

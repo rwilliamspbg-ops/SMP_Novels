@@ -141,10 +141,10 @@ docker-compose run --rm backend bash -c "node scripts/migrate.js"
 ### Step 3: Verify Event Logging
 Check that events are being recorded:
 ```sql
-SELECT event_type, payload->>'chapter' as chapter, occurred_at 
-FROM narrative_events 
+SELECT event_type, payload->>'chapter' as chapter, occurred_at
+FROM narrative_events
 WHERE user_id = 'test-user-123'
-ORDER BY occurred_at DESC 
+ORDER BY occurred_at DESC
 LIMIT 5;
 ```
 
@@ -197,8 +197,8 @@ console.log(context); // Returns relevant memory snippets
 | `backend/scripts/migrate.js` | CREATED | ~80 | Migration automation |
 | `backend/init-db.sql` | UPDATED | ~40 | Event table schema |
 
-**Total New Code:** ~570 lines  
-**Total Modified Lines:** ~200 lines  
+**Total New Code:** ~570 lines
+**Total Modified Lines:** ~200 lines
 **Net Addition:** +770 lines of production-ready code
 
 ---
@@ -242,6 +242,6 @@ Consider updating:
 
 ---
 
-**Version:** 3.2  
-**Date:** 2026-06-04  
+**Version:** 3.2
+**Date:** 2026-06-04
 **Status:** ✅ All improvements implemented and ready for deployment

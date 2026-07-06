@@ -1,6 +1,6 @@
 # 🚀 Cognoscent Echo - Complete Installation & Setup Guide
-**Version:** 1.0.0-Production  
-**Last Updated:** January 2024  
+**Version:** 1.0.0-Production
+**Last Updated:** January 2024
 
 ---
 
@@ -186,8 +186,8 @@ END;
 $$ language plpgsql;
 
 DROP TRIGGER IF EXISTS update_readers_progress_updated_at ON readers_progress;
-CREATE TRIGGER update_readers_progress_updated_at 
-    BEFORE UPDATE ON readers_progress 
+CREATE TRIGGER update_readers_progress_updated_at
+    BEFORE UPDATE ON readers_progress
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Insert sample chapters (chapters 1-6)
@@ -332,7 +332,7 @@ fastify.register(cors, {
       'https://echo-platform.vercel.app',
       process.env.FRONTEND_URL || 'https://your-frontend.vercel.app'
     ];
-    
+
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -413,7 +413,7 @@ psql -h localhost -U postgres -d interactive_novel
 \dt
 
 # Expected output:
-#            List of relations             |  Schema   |       Table       
+#            List of relations             |  Schema   |       Table
 -------------------------------------------+------------+-------------------
  readers_progress                          | public     | readers_progress
  governance_votes                          | public     | governance_votes
@@ -592,7 +592,7 @@ node --max-old-space-size=512 src/server_fastify.js
 
 ```sql
 -- Add composite index for common queries
-CREATE INDEX idx_governance_active ON governance_votes(proposal_id, option_id) 
+CREATE INDEX idx_governance_active ON governance_votes(proposal_id, option_id)
 WHERE status = 'active';
 
 -- Analyze tables for query planner

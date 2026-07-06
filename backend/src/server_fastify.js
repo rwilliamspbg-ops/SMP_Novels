@@ -289,7 +289,7 @@ fastify.post('/metrics', async (request, reply) => {
 // Admin chapter routes integration
 async function setupAdminRoutes() {
   const narrativeData = require('./narrativeData');
-  
+
   // Get all chapters
   fastify.get('/admin/chapters', async (request, reply) => {
     try {
@@ -302,11 +302,11 @@ async function setupAdminRoutes() {
   // Create new chapter
   fastify.post('/admin/chapters', async (request, reply) => {
     const { chapterId, text, choices, interactiveElement } = request.body;
-    
+
     if (!chapterId || !text || !choices) {
-      return reply.status(400).send({ 
+      return reply.status(400).send({
         error: 'Missing required fields',
-        required: ['chapterId', 'text', 'choices'] 
+        required: ['chapterId', 'text', 'choices']
       });
     }
 
@@ -319,7 +319,7 @@ async function setupAdminRoutes() {
           text = EXCLUDED.text,
           choices = EXCLUDED.choices,
           interactive_element = EXCLUDED.interactive_element`,
-        [chapterId, text, JSON.stringify(choices), 
+        [chapterId, text, JSON.stringify(choices),
          interactiveElement ? JSON.stringify(interactiveElement) : null]
       );
 
@@ -341,10 +341,10 @@ async function setupAdminRoutes() {
     try {
       const pool = require('./database').pool;
       await pool.query(`
-        UPDATE chapters 
+        UPDATE chapters
         SET text = $1, choices = $2, interactive_element = $3
         WHERE chapter_id = $4`,
-        [text, JSON.stringify(choices), 
+        [text, JSON.stringify(choices),
          interactiveElement ? JSON.stringify(interactiveElement) : null,
          chapterId]
       );

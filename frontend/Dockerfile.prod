@@ -1,51 +1,17 @@
-# SMP_Novels Frontend - Production Dockerfile
-# Fixed: v3.2 (ES module support)
-
+# SMP_Novels Frontend - Production Dockerfile (v3.3)
 FROM node:20-alpine AS builder
-
 WORKDIR /app
-
-# Copy package files
 COPY package*.json ./
-
-# Install all dependencies (npm install handles missing lock file gracefully)
-RUN npm install --production && \
-    npm cache clean --force
-
-# Copy application source
+RUN npm install --omit=dev
 COPY . .
 
-# Production stage - serve with Node.js HTTP server
 FROM node:20-alpine AS production
-
-# Install security tools
-RUN apk add --no-cache curl tini && \
-    apk upgrade --no-cache
-
+RUN apk add --no-cache curl tini && apk upgrade --no-cache
 WORKDIR /app
-
-# Copy production dependencies from builder
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/index.html ./
-COPY --from=builder /app/server.js ./
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/src /app/src
-
-# Create non-root user for security
-RUN addgroup -S app && adduser -S app -G app && \
-    chown -R app:app /app
-
-USER app
-
-# Set production environment
+COPY --from=builder --chown=node:node /app .
+USER node
 ENV NODE_ENV=production
 ENV PORT=3000
-
-# Expose port
 EXPOSE 3000
-
-# Use tini for proper PID 1 handling and signal forwarding
 ENTRYPOINT ["/sbin/tini", "--"]
-
-# Serve static files with Node.js HTTP server (ES module syntax)
 CMD ["node", "server.js"]

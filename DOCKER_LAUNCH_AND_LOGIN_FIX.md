@@ -10,7 +10,7 @@
 
 #### Root `.env` (C:\Users\rwill\SMP_Novels\.env)
 - ✅ Replaced `<change_me_strong_secret_64_hex_chars>` with secure JWT_SECRET
-- ✅ Replaced `<change_me_api_key_for_authentication>` with secure API_KEY  
+- ✅ Replaced `<change_me_api_key_for_authentication>` with secure API_KEY
 - ✅ Set STRIPE keys to test mode for development
 
 **JWT_SECRET:** `fdf73e1b68737be155474fdf7a5153d2d52686238ab40ec5c455034a3019f81b`
@@ -49,10 +49,10 @@ docker-compose ps
 
 **Expected Output:**
 ```
-        Name                    Command             State           
------------                    -------             -----           
+        Name                    Command             State
+-----------                    -------             -----
 backend                       node src/server_…   Up (healthy)
-frontend                       # build command    Up (healthy)  
+frontend                       # build command    Up (healthy)
 mongodb                       docker-entrypoint…  Up (healthy)
 postgres                      docker-entrypoint…  Up (healthy)
 redis                         docker-entrypoint…  Up (healthy)
@@ -90,7 +90,7 @@ curl -X POST http://localhost:3001/auth/register `
   -H "Content-Type: application/json" `
   -d '{
     "username": "testuser",
-    "email": "test@example.com", 
+    "email": "test@example.com",
     "password": "SecurePass123!"
   }'
 
@@ -166,11 +166,11 @@ CORS_ORIGIN=*
 
 ## 🎯 SUCCESS INDICATORS
 
-✅ All containers show "Up (healthy)" status  
-✅ Backend responds to `/ping` endpoint  
-✅ Frontend loads without errors  
-✅ Login form accepts credentials  
-✅ JWT token is generated and stored properly  
+✅ All containers show "Up (healthy)" status
+✅ Backend responds to `/ping` endpoint
+✅ Frontend loads without errors
+✅ Login form accepts credentials
+✅ JWT token is generated and stored properly
 
 ---
 

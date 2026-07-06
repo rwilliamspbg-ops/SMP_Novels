@@ -40,7 +40,7 @@ backend/
    # Delete Express if using Fastify (recommended):
    rm -f backend/node_modules/express/
    npm uninstall express
-   
+
    # OR vice versa depending on your codebase
    ```
 
@@ -54,7 +54,7 @@ backend/
    ```bash
    # Generate strong secrets:
    node -e "console.log(require('crypto').randomBytes(64).toString('hex'))" > .env.new
-   
+
    cat <<EOF > .env
    JWT_SECRET=<your_jwt_secret>
    STRIPE_SECRET_KEY=<your_stripe_key>

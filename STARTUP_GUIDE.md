@@ -78,7 +78,7 @@ docker-compose up
 # Start only backend (if you want to run frontend separately)
 docker-compose up backend
 
-# Start only frontend  
+# Start only frontend
 docker-compose up frontend
 
 # Start all with health checks waiting
@@ -126,7 +126,7 @@ docker-compose ps
 # Backend logs
 docker-compose logs backend
 
-# Frontend logs  
+# Frontend logs
 docker-compose logs frontend
 
 # All services
@@ -154,7 +154,7 @@ curl -X POST http://localhost:3001/choice \
   -H "Content-Type: application/json" \
   -d '{
     "userId": "demo-user-123",
-    "chapterId": 1, 
+    "chapterId": 1,
     "choiceIndex": 0
   }'
 
@@ -235,7 +235,7 @@ docker-compose ps mongodb postgres redis
 
 # View database logs
 docker-compose logs mongodb
-docker-compose logs postgres  
+docker-compose logs postgres
 docker-compose logs redis
 ```
 
@@ -265,7 +265,7 @@ redis             Up                      6379->6379/tcp
 
 ### Health Checks Passing
 - `http://localhost:3001/ping` → 200 OK
-- `http://localhost:3001/sandbox` → 200 OK  
+- `http://localhost:3001/sandbox` → 200 OK
 - `http://localhost:3000/` → HTML content loaded
 
 ## 🎯 Next Steps
@@ -294,7 +294,7 @@ redis             Up                      6379->6379/tcp
 
 - **DEPLOYMENT.md** - Full deployment guide
 - **IMPROVEMENT_SUMMARY.md** - All improvements made
-- **docker-compose.prod.yml** - Production configuration  
+- **docker-compose.prod.yml** - Production configuration
 - **.github/workflows/** - CI/CD automation examples
 
 ## 💡 Pro Tips
